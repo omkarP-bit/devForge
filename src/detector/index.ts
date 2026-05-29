@@ -9,6 +9,7 @@ import { detectPackageManager, detectNodeVersion } from './packageManagerDetecto
 import { detectProjectMeta } from './frameworkDetector';
 import { DetectionError } from '../utils/errors';
 import { logger } from '../utils/logger';
+import { saveDetectionCache, loadDetectionCache } from './detectionCache';
 
 /**
  * Runs the full project detection engine.
@@ -16,7 +17,20 @@ import { logger } from '../utils/logger';
  * Node.js version detection, and project structure scanning.
  * Validates the final result against the Zod schema and prints a summary table.
  */
-export async function runDetection(fs: DevForgeFS): Promise<DetectedProject> {
+export async function runDetection(
+  fs: DevForgeFS,
+  options: { forceDetect?: boolean } = {},
+): Promise<DetectedProject> {
+  const forceDetect = options.forceDetect ?? false;
+
+  if (!forceDetect) {
+    const cached = await loadDetectionCache(fs);
+    if (cached) {
+      logger.info('[devforge] Using cached detection (run with --force-detect to refresh)');
+      return cached;
+    }
+  }
+
   const spinner = ora('Reading package.json...').start();
   try {
     const pkg = await parsePackageJson(fs);
@@ -109,6 +123,8 @@ export async function runDetection(fs: DevForgeFS): Promise<DetectedProject> {
     );
 
     console.log(table.toString());
+
+    await saveDetectionCache(fs, parsed.data);
 
     return parsed.data;
   } catch (error) {

@@ -117,4 +117,57 @@ describe('runDetection Orchestrator', () => {
     await fs.writeFile(path.join(tmpDir, 'package.json'), 'invalid-json', 'utf-8');
     await expect(runDetection(devFS)).rejects.toThrow(DetectionError);
   });
+
+  describe('caching behaviors', () => {
+    let loggerInfoSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      loggerInfoSpy = jest.spyOn(logger, 'info').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      loggerInfoSpy.mockRestore();
+    });
+
+    it('uses cache on subsequent runs if present and forceDetect is false', async () => {
+      const pkgContent = { name: 'cached-project', version: '1.0.0' };
+      await fs.writeFile(path.join(tmpDir, 'package.json'), JSON.stringify(pkgContent), 'utf-8');
+
+      // First run: cache miss, runs full detection, writes cache
+      const freshResult = await runDetection(devFS);
+      expect(loggerInfoSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Using cached detection'),
+      );
+
+      // Modify package.json contents on disk, but cache remains
+      const modifiedPkg = { name: 'modified-project', version: '2.0.0' };
+      await fs.writeFile(path.join(tmpDir, 'package.json'), JSON.stringify(modifiedPkg), 'utf-8');
+
+      // Second run: cache hit, returns original detection, logs using cached detection
+      const cachedResult = await runDetection(devFS);
+      expect(cachedResult).toEqual(freshResult);
+      expect(loggerInfoSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Using cached detection'),
+      );
+    });
+
+    it('bypasses cache when forceDetect is true', async () => {
+      const pkgContent1 = { name: 'project-1', version: '1.0.0' };
+      await fs.writeFile(path.join(tmpDir, 'package.json'), JSON.stringify(pkgContent1), 'utf-8');
+
+      // First run
+      const result1 = await runDetection(devFS);
+
+      // Modify package.json
+      const pkgContent2 = { name: 'project-2', version: '2.0.0' };
+      await fs.writeFile(path.join(tmpDir, 'package.json'), JSON.stringify(pkgContent2), 'utf-8');
+
+      // Run with forceDetect: true
+      const result2 = await runDetection(devFS, { forceDetect: true });
+      expect(result2).not.toEqual(result1);
+      expect(loggerInfoSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Using cached detection'),
+      );
+    });
+  });
 });
