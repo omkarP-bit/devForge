@@ -45,6 +45,7 @@ export const BranchStrategySchema = z.nativeEnum(BranchStrategy);
 export const DetectedProjectSchema = z.object({
   framework: FrameworkSchema,
   packageManager: PackageManagerSchema,
+  nodeVersion: z.string().min(1),
   hasDocker: z.boolean(),
   hasTests: z.boolean(),
   hasLinting: z.boolean(),

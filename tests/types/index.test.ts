@@ -17,6 +17,7 @@ describe('configuration validation and schemas', () => {
     detected: {
       framework: Framework.REACT,
       packageManager: PackageManager.NPM,
+      nodeVersion: '20',
       hasDocker: false,
       hasTests: true,
       hasLinting: true,
