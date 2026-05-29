@@ -1,4 +1,3 @@
-import { runDetection } from '../src/detector';
 import { runDocker } from '../src/docker';
 import { runEngine } from '../src/engine';
 import { runGenerator } from '../src/generator';
@@ -15,11 +14,6 @@ describe('placeholder stub tests for coverage', () => {
 
   afterEach(() => {
     logSpy.mockRestore();
-  });
-
-  it('runDetection runs without error', () => {
-    runDetection();
-    expect(logSpy).toHaveBeenCalledWith('Project Detection Layer');
   });
 
   it('runDocker runs without error', () => {

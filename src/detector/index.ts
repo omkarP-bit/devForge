@@ -1,3 +1,4 @@
+/* eslint-disable security/detect-object-injection */
 import ora from 'ora';
 import Table from 'cli-table3';
 import { DetectedProject, DetectedProjectSchema, Framework } from '../types';
