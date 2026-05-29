@@ -47,8 +47,15 @@ export async function detectNodeVersion(fs: DevForgeFS, pkg: ParsedPackageJson):
   if (await fs.fileExists('.nvmrc')) {
     try {
       const content = await fs.readFile('.nvmrc');
-      detectedVersion = cleanAndExtractMajor(content);
+      const extracted = cleanAndExtractMajor(content);
+      if (!extracted) {
+        throw new DetectionError(`Invalid Node.js version in .nvmrc: "${content.trim()}"`);
+      }
+      detectedVersion = extracted;
     } catch (err) {
+      if (err instanceof DetectionError) {
+        throw err;
+      }
       const message = err instanceof Error ? err.message : String(err);
       throw new DetectionError(`Failed to read .nvmrc: ${message}`);
     }
@@ -56,7 +63,11 @@ export async function detectNodeVersion(fs: DevForgeFS, pkg: ParsedPackageJson):
 
   // 2. Try pkg.engines.node
   if (!detectedVersion && pkg.engines?.node) {
-    detectedVersion = cleanAndExtractMajor(pkg.engines.node);
+    const extracted = cleanAndExtractMajor(pkg.engines.node);
+    if (!extracted) {
+      throw new DetectionError(`Invalid Node.js version in engines.node: "${pkg.engines.node}"`);
+    }
+    detectedVersion = extracted;
   }
 
   // 3. Fallback to default

@@ -121,7 +121,6 @@ describe('packageManagerDetector', () => {
     });
 
     it('reads and cleans version from .nvmrc (just major number)', async () => {
-      await fs.writeFile(path.join(tmpDir, 'v14', '.nvmrc'), '14', 'utf-8'); // Wait, let's just write to .nvmrc directly
       await fs.writeFile(path.join(tmpDir, '.nvmrc'), '14', 'utf-8');
       const pkg = createMockPkg({});
       const version = await detectNodeVersion(devFS, pkg);
