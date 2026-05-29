@@ -9,6 +9,9 @@ export interface ParsedPackageJson {
   dependencies: Record<string, string>;
   devDependencies: Record<string, string>;
   scripts: Record<string, string>;
+  engines?: {
+    node?: string;
+  };
   hasField: (field: string) => boolean;
   getDependencyVersion: (name: string) => string | null;
   hasScript: (name: string) => boolean;
@@ -20,6 +23,11 @@ const PackageJsonSchema = z.object({
   dependencies: z.record(z.string()).optional().default({}),
   devDependencies: z.record(z.string()).optional().default({}),
   scripts: z.record(z.string()).optional().default({}),
+  engines: z
+    .object({
+      node: z.string().optional(),
+    })
+    .optional(),
 });
 
 /**
@@ -58,6 +66,7 @@ export async function parsePackageJson(fs: DevForgeFS): Promise<ParsedPackageJso
     dependencies: data.dependencies,
     devDependencies: data.devDependencies,
     scripts: data.scripts,
+    engines: data.engines,
     hasField(field: string): boolean {
       return (
         Object.prototype.hasOwnProperty.call(data.dependencies, field) ||
