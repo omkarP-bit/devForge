@@ -3,6 +3,7 @@
 import { Command } from 'commander';
 import { logger } from '../utils/logger';
 import { initCommand } from './initCommand';
+import { updateCommand } from './updateCommand';
 import { DevForgeFS } from '../utils/fs';
 import { listTransactionFiles, rollbackTransaction } from '../generator/transaction';
 
@@ -36,8 +37,15 @@ program
 program
   .command('update')
   .description('Update existing workflow files with latest template versions')
-  .action(() => {
-    updateCommand();
+  .option('--dry-run', 'Show changes without applying them')
+  .action(async (options) => {
+    try {
+      await updateCommand(process.cwd(), { dryRun: Boolean(options.dryRun) });
+    } catch (err) {
+      logger.error(String(err));
+      // eslint-disable-next-line n/no-process-exit
+      process.exit(1);
+    }
   });
 
 program
@@ -58,8 +66,10 @@ program
   .command('rollback')
   .description('Rollback a previous generation transaction')
   .option('--tx <file>', 'Path to transaction file (relative to project root)')
+  .option('--dry-run', 'Do not modify disk; show what would be done')
   .action(async (options) => {
-    const devfs = new DevForgeFS(process.cwd());
+    const dry = Boolean(options.dryRun || options.dryrun || options['dry-run']);
+    const devfs = new DevForgeFS(process.cwd(), dry);
     try {
       let txPath = options.tx as string | undefined;
       if (!txPath) {
@@ -79,7 +89,8 @@ program
 
       const messages = await rollbackTransaction(devfs, txPath);
       messages.forEach((m) => logger.info(m));
-      logger.success('Rollback completed');
+      if (dry) logger.info('Rollback dry-run complete (no disk changes made)');
+      else logger.success('Rollback completed');
     } catch (err) {
       logger.error(`Rollback failed: ${String(err)}`);
       // eslint-disable-next-line n/no-process-exit
@@ -87,9 +98,7 @@ program
     }
   });
 
-function updateCommand(): void {
-  logger.warn('Command not yet implemented');
-}
+// updateCommand is implemented in src/cli/updateCommand.ts
 
 function auditCommand(): void {
   logger.warn('Command not yet implemented');
