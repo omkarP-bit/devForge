@@ -1,4 +1,4 @@
-import { GenerationPlan, PlannedFile } from '../engine/ruleEngine';
+import { GenerationPlan } from '../engine/ruleEngine';
 import { DevForgeFS } from '../utils/fs';
 import { renderTemplate } from '../engine/templateRenderer';
 import { getTemplate } from '../templates';

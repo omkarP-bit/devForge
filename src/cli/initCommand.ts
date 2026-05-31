@@ -1,15 +1,14 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import ora from 'ora';
 import { DevForgeFS } from '../utils/fs';
 import { logger } from '../utils/logger';
 import { runDetection } from '../detector';
 import { collectUserConfig } from './prompts';
-import { buildGenerationPlan } from '../engine/ruleEngine';
+import { buildGenerationPlan, GenerationPlan } from '../engine/ruleEngine';
 import { previewGenerationPlan } from './preview';
 import { runGenerator } from '../generator';
 import { extractSecrets, generateSecretsDoc } from '../secrets/secretsAnalyzer';
-import { DevForgeConfig, DevForgeConfigSchema } from '../types';
+import { DevForgeConfigSchema } from '../types';
 import { readFile } from 'fs/promises';
 
 /**
@@ -146,7 +145,7 @@ export async function initCommand(
       console.error(error);
     }
 
-    process.exit(1);
+    throw error;
   }
 }
 
@@ -189,7 +188,7 @@ function printSuccessMessage(fileCount: number, secretCount: number): void {
  */
 async function readRenderedFiles(
   fs: DevForgeFS,
-  plan: any, // GenerationPlan type
+  plan: GenerationPlan,
 ): Promise<Array<{ path: string; content: string }>> {
   const renderedFiles: Array<{ path: string; content: string }> = [];
 

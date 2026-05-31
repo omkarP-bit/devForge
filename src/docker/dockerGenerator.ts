@@ -1,9 +1,8 @@
-import { GenerationPlan, PlannedFile, TemplateVariable } from '../engine/ruleEngine';
+import { GenerationPlan, TemplateVariable } from '../engine/ruleEngine';
 import { DevForgeFS } from '../utils/fs';
 import { renderTemplate } from '../engine/templateRenderer';
 import { getTemplate } from '../templates';
 import { logger } from '../utils/logger';
-import { GeneratorError } from '../utils/errors';
 
 /**
  * Result of Docker file generation

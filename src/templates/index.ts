@@ -38,6 +38,7 @@ const RAILWAY_DEPLOY_TEMPLATE =
  * Uses Render deploy hook for automated deployments
  */
 const RENDER_DEPLOY_TEMPLATE =
+  // eslint-disable-next-line no-useless-escape
   'name: Deploy to Render\n\non:\n  push:\n    branches: [main]\n\npermissions:\n  contents: read\n  deployments: write\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    environment:\n      name: production\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n      - name: Trigger Render deployment\n        run: |\n          curl --request POST \\\n            --url \"${{ secrets.RENDER_DEPLOY_HOOK }}\" \\\n            --header \"Content-Type: application/json\" \\\n            --data \'{\n              \"gitCommitSha\": \"${{ github.sha }}\",\n              \"gitCommitMessage\": \"${{ github.event.head_commit.message }}\",\n              \"gitBranch\": \"${{ github.ref_name }}\"\n            }\'\n      - name: Wait for Render deployment\n        run: sleep 30\n      - name: Check deployment status\n        run: echo \"✓ Deployment triggered on Render\"\n';
 
 /**
