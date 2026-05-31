@@ -3,6 +3,8 @@
 import { Command } from 'commander';
 import { logger } from '../utils/logger';
 import { initCommand } from './initCommand';
+import { DevForgeFS } from '../utils/fs';
+import { listTransactionFiles, rollbackTransaction } from '../generator/transaction';
 
 const program = new Command();
 
@@ -50,6 +52,39 @@ program
   .description('Preview generated workflows before writing to disk')
   .action(() => {
     previewCommand();
+  });
+
+program
+  .command('rollback')
+  .description('Rollback a previous generation transaction')
+  .option('--tx <file>', 'Path to transaction file (relative to project root)')
+  .action(async (options) => {
+    const devfs = new DevForgeFS(process.cwd());
+    try {
+      let txPath = options.tx as string | undefined;
+      if (!txPath) {
+        const files = await listTransactionFiles(devfs);
+        if (!files || files.length === 0) {
+          logger.info('No transaction files found under .devforge/transactions');
+          return;
+        }
+        // choose the latest file by lexical order (timestamps in filename)
+        txPath = files.sort().pop();
+      }
+
+      if (!txPath) {
+        logger.info('No transaction selected');
+        return;
+      }
+
+      const messages = await rollbackTransaction(devfs, txPath);
+      messages.forEach((m) => logger.info(m));
+      logger.success('Rollback completed');
+    } catch (err) {
+      logger.error(`Rollback failed: ${String(err)}`);
+      // eslint-disable-next-line n/no-process-exit
+      process.exit(1);
+    }
   });
 
 function updateCommand(): void {
