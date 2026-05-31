@@ -5,6 +5,7 @@ import { getTemplate } from '../templates';
 import { logger } from '../utils/logger';
 import { GeneratorError } from '../utils/errors';
 import inquirer from 'inquirer';
+import { validateWorkflowYaml } from '../validator/yamlValidator';
 
 /**
  * Result of a generation run with summary of what was written, skipped, and backed up.
@@ -59,6 +60,12 @@ export async function runGenerator(
   }
 
   // Process each file in the plan
+  const transaction: Array<{
+    path: string;
+    action: 'write' | 'backup';
+    previousContent?: string;
+  }> = [];
+
   for (const plannedFile of plan.files) {
     try {
       // Render the template
@@ -71,8 +78,7 @@ export async function runGenerator(
         }
         renderedContent = renderTemplate(template, fileVariables);
       } catch (error) {
-        const errorMsg =
-          error instanceof Error ? error.message : 'Unknown error';
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         throw new GeneratorError(`Failed to render template: ${errorMsg}`);
       }
 
@@ -113,40 +119,58 @@ export async function runGenerator(
             result.backed_up.push(plannedFile.path);
             logger.info(`Backed up to: ${backupPath}`);
           } catch (backupError) {
-            const errorMsg =
-              backupError instanceof Error
-                ? backupError.message
-                : 'Unknown error';
-            throw new GeneratorError(
-              `Failed to create backup: ${errorMsg}`,
-            );
+            const errorMsg = backupError instanceof Error ? backupError.message : 'Unknown error';
+            throw new GeneratorError(`Failed to create backup: ${errorMsg}`);
           }
         }
       }
 
       // Ensure parent directory exists
-      const parentDir = plannedFile.path.substring(
-        0,
-        plannedFile.path.lastIndexOf('/'),
-      );
+      const parentDir = plannedFile.path.substring(0, plannedFile.path.lastIndexOf('/'));
       if (parentDir) {
         await fs.ensureDir(parentDir);
+      }
+
+      // If this is a workflow file, validate YAML before writing
+      const isWorkflowFile = /^\.github\/workflows\/.+\.ya?ml$/i.test(plannedFile.path);
+      // Only validate if file looks like a workflow (contains typical workflow keys)
+      const looksLikeWorkflow = /\bon\s*:\b|\bjobs\s*:/i.test(renderedContent);
+      if (isWorkflowFile && looksLikeWorkflow) {
+        try {
+          const validation = validateWorkflowYaml(renderedContent, plannedFile.path);
+          // Report warnings but allow write; errors block the write
+          for (const w of validation.warnings) {
+            logger.warn(`Workflow warning for ${plannedFile.path}: ${w.code} - ${w.message}`);
+          }
+          if (validation.errors.length > 0) {
+            // Do not write the invalid workflow; add to errors and continue
+            for (const e of validation.errors) {
+              result.errors.push({ path: plannedFile.path, error: `${e.code}: ${e.message}` });
+              logger.error(`Validation failed for ${plannedFile.path}: ${e.code} - ${e.message}`);
+            }
+            // Skip writing this file due to validation errors
+            continue;
+          }
+        } catch (valErr) {
+          const msg = valErr instanceof Error ? valErr.message : String(valErr);
+          result.errors.push({ path: plannedFile.path, error: `VALIDATION_EXCEPTION: ${msg}` });
+          logger.error(`Validation exception for ${plannedFile.path}: ${msg}`);
+          continue;
+        }
       }
 
       // Write the file
       await fs.writeFile(plannedFile.path, renderedContent);
       result.written.push(plannedFile.path);
+      transaction.push({ path: plannedFile.path, action: 'write', previousContent: undefined });
       logger.success(`Generated: ${plannedFile.path}`);
     } catch (error) {
-      const errorMsg =
-        error instanceof Error ? error.message : 'Unknown error';
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       result.errors.push({
         path: plannedFile.path,
         error: errorMsg,
       });
-      logger.error(
-        `Error generating ${plannedFile.path}: ${errorMsg}`,
-      );
+      logger.error(`Error generating ${plannedFile.path}: ${errorMsg}`);
     }
   }
 
@@ -158,12 +182,24 @@ export async function runGenerator(
       timestamp: new Date().toISOString(),
     };
     await fs.ensureDir('.devforge');
-    await fs.writeFile(
-      '.devforge/last-run.json',
-      JSON.stringify(metadata, null, 2),
-    );
+    await fs.writeFile('.devforge/last-run.json', JSON.stringify(metadata, null, 2));
   } catch (error) {
     logger.warn('Failed to write last-run metadata (non-critical)');
+  }
+
+  // If errors occurred during generation, write a transaction log for possible rollback
+  if (result.errors.length > 0) {
+    try {
+      await fs.ensureDir('.devforge/transactions');
+      const txPath = `.devforge/transactions/tx-${Date.now()}.json`;
+      await fs.writeFile(
+        txPath,
+        JSON.stringify({ planHash: plan.planHash, transaction, errors: result.errors }, null, 2),
+      );
+      logger.warn(`Generation completed with errors; transaction recorded at ${txPath}`);
+    } catch (txErr) {
+      logger.warn('Failed to write transaction log (non-critical)');
+    }
   }
 
   // Print summary
@@ -178,9 +214,7 @@ export async function runGenerator(
  */
 function printGenerationSummary(result: GenerationResult): void {
   console.log('');
-  console.log(
-    `✓ Generated ${result.written.length} file${result.written.length === 1 ? '' : 's'}`,
-  );
+  console.log(`✓ Generated ${result.written.length} file${result.written.length === 1 ? '' : 's'}`);
   if (result.skipped.length > 0) {
     console.log(
       `! Skipped ${result.skipped.length} file${result.skipped.length === 1 ? '' : 's'} (already exist)`,
@@ -192,9 +226,7 @@ function printGenerationSummary(result: GenerationResult): void {
     );
   }
   if (result.errors.length > 0) {
-    console.log(
-      `✗ ${result.errors.length} error${result.errors.length === 1 ? '' : 's'}`,
-    );
+    console.log(`✗ ${result.errors.length} error${result.errors.length === 1 ? '' : 's'}`);
   }
   console.log('');
 }

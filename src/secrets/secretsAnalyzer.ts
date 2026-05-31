@@ -64,8 +64,7 @@ const KNOWN_SECRETS: Record<string, KnownSecret> = {
   },
   RAILWAY_TOKEN: {
     description: 'Railway platform authentication token',
-    howToObtain:
-      'Visit railway.app → Account → Tokens → Create a new token with full access',
+    howToObtain: 'Visit railway.app → Account → Tokens → Create a new token with full access',
     githubSettingsPath: 'Settings → Secrets and variables → Actions → New repository secret',
   },
   RENDER_DEPLOY_HOOK: {
@@ -136,6 +135,13 @@ export function extractSecrets(renderedFiles: RenderedFile[]): SecretInfo[] {
   for (const file of renderedFiles) {
     const matches = file.content.matchAll(SECRETS_REGEX);
 
+    // Detect environment from filename pattern .github/workflows/deploy-<env>.yml
+    let envLabel = '';
+    const mEnv = file.path.match(/\.github\/workflows\/deploy-([a-zA-Z0-9_-]+)\.ya?ml$/i);
+    if (mEnv && mEnv[1]) {
+      envLabel = mEnv[1];
+    }
+
     for (const match of matches) {
       const secretName = match[1];
 
@@ -145,12 +151,18 @@ export function extractSecrets(renderedFiles: RenderedFile[]): SecretInfo[] {
 
       if (!secretsMap.has(secretName)) {
         // Look up in known secrets registry
+        // eslint-disable-next-line security/detect-object-injection
         const knownSecret = KNOWN_SECRETS[secretName];
 
         if (knownSecret) {
+          const usedInEntries = [file.path];
+          // Only add env-labeled entry if the path does not already mention the env
+          if (envLabel && !file.path.toLowerCase().includes(envLabel.toLowerCase())) {
+            usedInEntries.push(`${file.path} (env:${envLabel})`);
+          }
           secretsMap.set(secretName, {
             name: secretName,
-            usedIn: [file.path],
+            usedIn: usedInEntries,
             description: knownSecret.description,
             howToObtain: knownSecret.howToObtain,
             githubSettingsPath:
@@ -171,8 +183,15 @@ export function extractSecrets(renderedFiles: RenderedFile[]): SecretInfo[] {
       } else {
         // Add file reference if not already present
         const existing = secretsMap.get(secretName)!;
+        // Add both plain path and env-labeled entry (if env present) to preserve compatibility
         if (!existing.usedIn.includes(file.path)) {
           existing.usedIn.push(file.path);
+        }
+        if (envLabel && !file.path.toLowerCase().includes(envLabel.toLowerCase())) {
+          const envEntry = `${file.path} (env:${envLabel})`;
+          if (!existing.usedIn.includes(envEntry)) {
+            existing.usedIn.push(envEntry);
+          }
         }
       }
     }
