@@ -62,16 +62,24 @@ export async function updateCommand(
     return;
   }
 
-  const answer = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'apply',
-      message: 'Apply these changes? (Y/n)',
-      default: true,
-    },
-  ]);
+  let shouldApply = false;
+  if (process.env.CI === 'true') {
+    // In CI/non-interactive environments, auto-apply changes
+    shouldApply = true;
+    logger.info('CI environment detected. Auto-applying changes.');
+  } else {
+    const answer = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'apply',
+        message: 'Apply these changes? (Y/n)',
+        default: true,
+      },
+    ]);
+    shouldApply = answer.apply;
+  }
 
-  if (!answer.apply) {
+  if (!shouldApply) {
     logger.info('Update cancelled.');
     return;
   }
