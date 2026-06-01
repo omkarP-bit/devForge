@@ -14,7 +14,7 @@ describe('package release hardening', () => {
     expect(packageJson.files).toEqual(['dist/', 'docs/', 'README.md', 'LICENSE', 'CHANGELOG.md']);
     expect(packageJson.engines?.node).toBe('>=18.0.0');
     expect(packageJson.license).toBe('MIT');
-    expect(packageJson.scripts?.prepublishOnly).toBe('npm run lint && npm run test && npm run build');
+    expect(packageJson.scripts?.prepublishOnly).toBe('npm run build && npm run lint && npm run test');
     expect(packageJson.scripts?.postinstall).toBe('');
   });
 });
