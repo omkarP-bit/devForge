@@ -5,10 +5,15 @@ import { logger } from '../utils/logger';
 import { initCommand } from './initCommand';
 import { updateCommand } from './updateCommand';
 import { auditCommand } from './auditCommand';
+import { agentResetCommand, agentStatusCommand } from './agentCommand';
+import { cacheClearCommand, cacheStatsCommand } from './cacheCommand';
 import { DevForgeFS } from '../utils/fs';
 import { listTransactionFiles, rollbackTransaction } from '../generator/transaction';
+import { AgentCache } from '../agent/cache/AgentCache';
 
 const program = new Command();
+
+void new AgentCache().prune().catch(() => undefined);
 
 if (process.env.NODE_ENV === 'production' && !__dirname.includes('node_modules')) {
   logger.warn(
@@ -19,7 +24,17 @@ if (process.env.NODE_ENV === 'production' && !__dirname.includes('node_modules')
 program
   .name('devforge')
   .description('Automated CI/CD Pipeline Generator and Deployment Automation Tool')
-  .version('1.0.0');
+  .version('1.0.0')
+  .addHelpText(
+    'after',
+    `
+Agent Commands:
+  agent status     Show AI provider configuration
+  agent reset      Reconfigure AI provider
+  cache clear      Clear the LLM response cache
+  cache stats      Show cache usage statistics
+`,
+  );
 
 program
   .command('init')
@@ -29,6 +44,7 @@ program
   .option('--preview', 'Show file previews before generating')
   .option('--timing', 'Show per-phase timing information')
   .option('--verbose', 'Alias for --timing')
+  .option('--no-agent', 'Skip agent logic and run in offline/v1 mode for this session')
   .action(async (options) => {
     try {
       await initCommand(process.cwd(), {
@@ -37,6 +53,7 @@ program
         preview: options.preview ?? false,
         timing: options.timing ?? false,
         verbose: options.verbose ?? false,
+        noAgent: options.agent === false,
       });
     } catch (err) {
       logger.error('\n✗ DevForge initialization failed');
@@ -80,6 +97,62 @@ program
     previewCommand();
   });
 
+const agentCommand = program.command('agent').description('Manage DevForge AI provider');
+
+agentCommand
+  .command('status')
+  .description('Show AI provider configuration and cache stats')
+  .action(async () => {
+    try {
+      await agentStatusCommand();
+    } catch (err) {
+      logger.error(err instanceof Error ? err.message : String(err));
+      // eslint-disable-next-line n/no-process-exit
+      process.exit(1);
+    }
+  });
+
+agentCommand
+  .command('reset')
+  .description('Clear stored credentials and reconfigure the AI provider')
+  .action(async () => {
+    try {
+      await agentResetCommand();
+    } catch (err) {
+      logger.error(err instanceof Error ? err.message : String(err));
+      // eslint-disable-next-line n/no-process-exit
+      process.exit(1);
+    }
+  });
+
+const cacheCommand = program.command('cache').description('Manage DevForge agent cache');
+
+cacheCommand
+  .command('clear')
+  .description('Clear the agent LLM response cache')
+  .action(async () => {
+    try {
+      await cacheClearCommand();
+    } catch (err) {
+      logger.error(err instanceof Error ? err.message : String(err));
+      // eslint-disable-next-line n/no-process-exit
+      process.exit(1);
+    }
+  });
+
+cacheCommand
+  .command('stats')
+  .description('Show cache usage statistics')
+  .action(async () => {
+    try {
+      await cacheStatsCommand();
+    } catch (err) {
+      logger.error(err instanceof Error ? err.message : String(err));
+      // eslint-disable-next-line n/no-process-exit
+      process.exit(1);
+    }
+  });
+
 program
   .command('rollback')
   .description('Rollback a previous generation transaction')
@@ -96,7 +169,6 @@ program
           logger.info('No transaction files found under .devforge/transactions');
           return;
         }
-        // choose the latest file by lexical order (timestamps in filename)
         txPath = files.sort().pop();
       }
 
@@ -120,5 +192,4 @@ function previewCommand(): void {
   logger.warn('Command not yet implemented');
 }
 
-// Parse command line arguments
 program.parse(process.argv);

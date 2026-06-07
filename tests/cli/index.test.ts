@@ -15,6 +15,9 @@ describe('CLI and Logger Smoke Tests', () => {
     expect(stderr).not.toMatch(/error/i);
     expect(stdout).toContain('Automated CI/CD Pipeline Generator');
     expect(stdout).toContain('Usage: devforge');
+    expect(stdout).toContain('Agent Commands:');
+    expect(stdout).toContain('agent status');
+    expect(stdout).toContain('cache stats');
   });
 
   it('warns about package integrity in production when launched outside node_modules', async () => {
@@ -67,11 +70,24 @@ describe('CLI and Logger Smoke Tests', () => {
       process.argv = originalArgv;
     });
     it('invokes the CLI binary for init (dry-run)', async () => {
-      const { stdout, stderr } = await execAsync(`node "${cliPath}" init --dry-run`, {
-        env: { ...process.env, CI: 'true' },
-      } as any);
-      expect(stderr).not.toMatch(/error/i);
-      expect(stdout).toContain('Automated CI/CD Pipeline Generator');
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'devforge-cli-init-'));
+      const credentialsPath = path.join(tempDir, 'credentials.json');
+
+      try {
+        const { stdout, stderr } = await execAsync(`node "${cliPath}" init --dry-run`, {
+          env: {
+            ...process.env,
+            CI: 'true',
+            DEVFORGE_CREDENTIALS_PATH: credentialsPath,
+          },
+        } as any);
+        expect(stderr).not.toMatch(/error/i);
+        expect(stdout).toContain('Agentic Edition');
+        expect(stdout).toContain('AI Provider:');
+        await expect(fs.access(credentialsPath)).resolves.not.toThrow();
+      } finally {
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
     });
 
     it('invokes the CLI binary for update (dry-run)', async () => {
@@ -105,6 +121,44 @@ describe('CLI and Logger Smoke Tests', () => {
         env: { ...process.env, CI: 'true' },
       } as any);
       expect(stderr).not.toMatch(/error/i);
+    });
+
+    it('invokes the CLI binary for cache clear', async () => {
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'devforge-cli-cache-'));
+      const cachePath = path.join(tempDir, 'agent-cache.json');
+
+      try {
+        await fs.mkdir(tempDir, { recursive: true });
+        await fs.writeFile(
+          cachePath,
+          JSON.stringify({
+            entries: [
+              {
+                key: 'sample',
+                response: 'value',
+                createdAt: Date.now(),
+                ttlMs: 86_400_000,
+              },
+            ],
+          }),
+          'utf-8',
+        );
+
+        const { stderr } = await execAsync(`node "${cliPath}" cache clear`, {
+          env: {
+            ...process.env,
+            DEVFORGE_AGENT_CACHE_PATH: cachePath,
+          },
+        } as any);
+        expect(stderr).not.toMatch(/error/i);
+
+        const raw = JSON.parse(await fs.readFile(cachePath, 'utf-8')) as {
+          entries: unknown[];
+        };
+        expect(raw.entries).toHaveLength(0);
+      } finally {
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
     });
   });
 });

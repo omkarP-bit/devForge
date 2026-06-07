@@ -37,3 +37,19 @@ export class GeneratorError extends Error {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
+
+export class AgentConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AgentConfigError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export class AgentTimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AgentTimeoutError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}

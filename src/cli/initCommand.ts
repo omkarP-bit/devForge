@@ -12,6 +12,9 @@ import { extractSecrets, generateSecretsDoc } from '../secrets/secretsAnalyzer';
 import { DevForgeConfigSchema } from '../types';
 import { readFile } from 'fs/promises';
 import { performance } from 'perf_hooks';
+import { CredentialManager } from '../agent/credentials';
+import { StoredCredentials } from '../agent/credentials/types';
+import { formatProviderName, getProviderMode } from '../agent/providerDisplay';
 
 /**
  * Orchestrates the complete DevForge initialization workflow.
@@ -29,6 +32,7 @@ export async function initCommand(
     preview?: boolean;
     timing?: boolean;
     verbose?: boolean;
+    noAgent?: boolean;
   } = {},
 ): Promise<void> {
   const dryRun = options.dryRun ?? false;
@@ -43,8 +47,22 @@ export async function initCommand(
   };
 
   try {
-    // Print DevForge banner
-    printBanner();
+    let activeCredentials: StoredCredentials | null = null;
+
+    if (!options.noAgent) {
+      const credentialManager = new CredentialManager();
+      if (await credentialManager.isFirstRun()) {
+        if (process.env.CI === 'true') {
+          activeCredentials = await credentialManager.saveOfflineCredentials();
+        } else {
+          activeCredentials = await credentialManager.runFirstTimeSetup();
+        }
+      } else {
+        activeCredentials = await credentialManager.loadCredentials();
+      }
+    }
+
+    printBanner(activeCredentials, { noAgent: options.noAgent ?? false });
 
     // Initialize filesystem abstraction
     const fs = new DevForgeFS(projectRoot, dryRun);
@@ -216,14 +234,43 @@ function getDefaultUserConfig(detected: DetectedProject): UserConfig {
  * Prints the DevForge banner with branding
  * @internal
  */
-function printBanner(): void {
+function printBanner(
+  credentials: StoredCredentials | null = null,
+  options: { noAgent?: boolean } = {},
+): void {
   console.log('');
-  console.log(chalk.bold(chalk.cyan('╔══════════════════════════════════════╗')));
-  console.log(chalk.bold(chalk.cyan('║          🚀 DevForge 1.0.0            ║')));
-  console.log(chalk.bold(chalk.cyan('║  Automated CI/CD Pipeline Generator   ║')));
-  console.log(chalk.bold(chalk.cyan('║  See docs/COMMANDS.md for usage       ║')));
-  console.log(chalk.bold(chalk.cyan('╚══════════════════════════════════════╝')));
+
+  if (options.noAgent) {
+    console.log(chalk.bold(chalk.cyan('╔══════════════════════════════════════╗')));
+    console.log(chalk.bold(chalk.cyan('║          🚀 DevForge 1.0.0            ║')));
+    console.log(chalk.bold(chalk.cyan('║  Automated CI/CD Pipeline Generator   ║')));
+    console.log(chalk.bold(chalk.cyan('║  See docs/COMMANDS.md for usage       ║')));
+    console.log(chalk.bold(chalk.cyan('╚══════════════════════════════════════╝')));
+    console.log('');
+    return;
+  }
+
+  const providerLabel = credentials
+    ? formatProviderName(credentials.provider)
+    : 'Not configured';
+  const modeLabel = credentials
+    ? getProviderMode(credentials.provider)
+    : 'Setup required';
+
+  console.log(chalk.bold(chalk.cyan('┌──────────────────────────────────────────┐')));
+  console.log(chalk.bold(chalk.cyan('│  DevForge v2 — Agentic Edition           │')));
+  console.log(chalk.bold(chalk.cyan(`│  AI Provider: ${padBannerLine(providerLabel, 25)}│`)));
+  console.log(chalk.bold(chalk.cyan(`│  Mode: ${padBannerLine(modeLabel, 32)}│`)));
+  console.log(chalk.bold(chalk.cyan('└──────────────────────────────────────────┘')));
   console.log('');
+}
+
+function padBannerLine(value: string, width: number): string {
+  if (value.length >= width) {
+    return value.slice(0, width);
+  }
+
+  return value.padEnd(width, ' ');
 }
 
 /**

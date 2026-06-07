@@ -4,6 +4,8 @@ import {
   ValidationError,
   DetectionError,
   GeneratorError,
+  AgentConfigError,
+  AgentTimeoutError,
 } from '../../src/utils';
 
 describe('custom errors', () => {
@@ -45,5 +47,21 @@ describe('custom errors', () => {
     expect(err).toBeInstanceOf(GeneratorError);
     expect(err.name).toBe('GeneratorError');
     expect(err.message).toBe('generator failed');
+  });
+
+  it('AgentConfigError works correctly', () => {
+    const err = new AgentConfigError('unknown provider');
+    expect(err).toBeInstanceOf(Error);
+    expect(err).toBeInstanceOf(AgentConfigError);
+    expect(err.name).toBe('AgentConfigError');
+    expect(err.message).toBe('unknown provider');
+  });
+
+  it('AgentTimeoutError works correctly', () => {
+    const err = new AgentTimeoutError('openai request timed out after 30000ms');
+    expect(err).toBeInstanceOf(Error);
+    expect(err).toBeInstanceOf(AgentTimeoutError);
+    expect(err.name).toBe('AgentTimeoutError');
+    expect(err.message).toBe('openai request timed out after 30000ms');
   });
 });

@@ -1,0 +1,106 @@
+import ora, { Ora } from 'ora';
+import { BaseAgent } from './BaseAgent';
+import { AgentContext, AgentOutputMessage, AgentResult } from './types';
+import { logger } from '../utils/logger';
+
+export class AgentRuntime {
+  async runForeground(agent: BaseAgent, context: AgentContext): Promise<AgentResult> {
+    const spinner = ora(`Running ${agent.agentName}...`).start();
+
+    try {
+      const result = await agent.run(context);
+      this.finishSpinner(spinner, agent.agentName, result.success);
+      this.printResult(result);
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      spinner.fail(`${agent.agentName} failed`);
+      logger.warn(`Agent ${agent.agentName} failed: ${message}`);
+
+      const failureResult = this.createFailureResult(agent.agentName, message);
+      this.printResult(failureResult);
+      return failureResult;
+    }
+  }
+
+  async runBackground(agent: BaseAgent, context: AgentContext): Promise<void> {
+    void this.runForeground(agent, context);
+  }
+
+  async runAll(
+    agents: BaseAgent[],
+    context: AgentContext,
+    mode: 'foreground' | 'background',
+  ): Promise<AgentResult[]> {
+    if (mode === 'background') {
+      for (const agent of agents) {
+        void this.runBackground(agent, context);
+      }
+      return [];
+    }
+
+    const results: AgentResult[] = [];
+
+    for (const agent of agents) {
+      results.push(await this.runForeground(agent, context));
+    }
+
+    return results;
+  }
+
+  private finishSpinner(spinner: Ora, agentName: string, success: boolean): void {
+    if (success) {
+      spinner.succeed(`${agentName} completed`);
+      return;
+    }
+
+    spinner.warn(`${agentName} finished with warnings`);
+  }
+
+  private createFailureResult(agentName: string, message: string): AgentResult {
+    return {
+      agentName,
+      success: false,
+      messages: [
+        {
+          type: 'warn',
+          text: `${agentName} could not complete: ${message}`,
+        },
+      ],
+      recommendations: [],
+      warnings: [],
+    };
+  }
+
+  private printResult(result: AgentResult): void {
+    for (const message of result.messages) {
+      this.printMessage(message);
+    }
+
+    for (const recommendation of result.recommendations) {
+      logger.info(
+        `[${recommendation.severity}] ${recommendation.title}: ${recommendation.description}`,
+      );
+    }
+
+    for (const warning of result.warnings) {
+      logger.warn(`[${warning.severity}] ${warning.title}: ${warning.description}`);
+    }
+  }
+
+  private printMessage(message: AgentOutputMessage): void {
+    switch (message.type) {
+      case 'success':
+        logger.success(message.text);
+        break;
+      case 'warn':
+        logger.warn(message.text);
+        break;
+      case 'error':
+        logger.error(message.text);
+        break;
+      default:
+        logger.info(message.text);
+    }
+  }
+}
