@@ -21,6 +21,7 @@ const config: Config = {
   setupFiles: ['<rootDir>/tests/setup.ts'],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setupAfterEnv.ts'],
 };
 
 export default config;
