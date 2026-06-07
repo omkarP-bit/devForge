@@ -32,6 +32,11 @@
     "prepublishOnly": "npm run lint && npm run test:coverage && npm run build && npm audit --audit-level=high && node dist/cli/index.js --version",
     "release": "semantic-release"
   },
+  "overrides": {
+    "@langchain/langgraph-checkpoint": {
+      "uuid": "$uuid"
+    }
+  },
   "save-exact": true,
   "dependencies": {
     "@anthropic-ai/sdk": "0.54.0",

@@ -24,19 +24,18 @@ export function buildStoredCredentialsForCacheTest(
   };
 }
 
-export async function testElastiCacheConnection(options: {
-  storedCredentials?: StoredCredentials | null;
-  credentials?: Record<string, string>;
-  config?: ElastiCacheConfig | null;
-} = {}): Promise<ElastiCacheTestResult> {
+export async function testElastiCacheConnection(
+  options: {
+    storedCredentials?: StoredCredentials | null;
+    credentials?: Record<string, string>;
+    config?: ElastiCacheConfig | null;
+  } = {},
+): Promise<ElastiCacheTestResult> {
   const stored =
     options.storedCredentials ??
-    (options.credentials
-      ? buildStoredCredentialsForCacheTest(options.credentials)
-      : null);
+    (options.credentials ? buildStoredCredentialsForCacheTest(options.credentials) : null);
 
-  const config =
-    options.config === undefined ? resolveElastiCacheConfig(stored) : options.config;
+  const config = options.config === undefined ? resolveElastiCacheConfig(stored) : options.config;
 
   if (!config) {
     return {
@@ -61,6 +60,12 @@ export async function testElastiCacheConnection(options: {
       lazyConnect: true,
       enableOfflineQueue: false,
     });
+
+    if (typeof client.on === 'function') {
+      client.on('error', () => {
+        // Suppress unhandled ioredis connection errors to prevent crash
+      });
+    }
 
     await client.connect();
     const pong = await client.ping();

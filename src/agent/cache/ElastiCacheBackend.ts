@@ -157,6 +157,12 @@ export class ElastiCacheBackend {
         enableOfflineQueue: false,
       });
 
+      if (typeof this.client.on === 'function') {
+        this.client.on('error', () => {
+          // Suppress unhandled ioredis connection errors to prevent crash
+        });
+      }
+
       await this.client.connect();
       await this.client.ping();
       return true;
