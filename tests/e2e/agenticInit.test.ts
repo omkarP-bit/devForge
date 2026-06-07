@@ -116,6 +116,7 @@ function mockFirstRunPrompts(): void {
     .mockResolvedValueOnce({ branchStrategy: 'feature_main' })
     .mockResolvedValueOnce({ dockerRequired: false })
     .mockResolvedValueOnce({ multiEnvironment: false })
+    .mockResolvedValueOnce({ enableTrivyScan: false })
     .mockResolvedValueOnce({ wantPreview: false });
 }
 

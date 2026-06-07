@@ -26,6 +26,8 @@ export enum DeploymentTarget {
   RENDER = 'render',
   FIREBASE = 'firebase',
   AWS_EC2 = 'aws_ec2',
+  AWS_ECS = 'aws_ecs',
+  AWS_EKS = 'aws_eks',
   DOCKER = 'docker',
 }
 
@@ -61,7 +63,8 @@ export const UserConfigSchema = z.object({
   dockerRequired: z.boolean(),
   multiEnvironment: z.boolean(),
   environments: z.array(z.string().min(1)),
-  enableTrivyScan: z.boolean().optional().default(false),
+  enableTrivyScan: z.boolean().optional().default(false).optional(),
+  iacTool: z.enum(['terraform', 'cdk', 'boto3', 'skip']).optional(),
 });
 
 export const DevForgeConfigSchema = z.object({
@@ -78,6 +81,53 @@ export const DevForgeConfigSchema = z.object({
 export interface DetectedProject extends z.infer<typeof DetectedProjectSchema> {}
 export interface UserConfig extends z.infer<typeof UserConfigSchema> {}
 export interface DevForgeConfig extends z.infer<typeof DevForgeConfigSchema> {}
+
+// ── IaC Detection Types ──────────────────────────────────────────────
+
+export type IaCTool = 'terraform' | 'cdk' | 'boto3' | 'pulumi' | 'ansible';
+
+export interface IaCDetectionResult {
+  detected: boolean;
+  tool: IaCTool | null;
+  entryPoints: string[];
+  isDeployReady: boolean;
+  configDir: string | null;
+}
+
+// ── IaC Generation Types ─────────────────────────────────────────────
+
+export interface IaCGeneratedFile {
+  relativePath: string;
+  content: string;
+  description: string;
+}
+
+export interface IaCGenerationOutput {
+  tool: 'terraform' | 'cdk' | 'boto3';
+  files: IaCGeneratedFile[];
+  installInstructions: string[];
+  notes: string[];
+}
+
+export interface IaCVerifyError {
+  file: string;
+  line?: number;
+  message: string;
+  fatal: boolean;
+}
+
+export interface IaCVerifyWarning {
+  file: string;
+  message: string;
+}
+
+export interface IaCVerifyResult {
+  tool: string;
+  passed: boolean;
+  errors: IaCVerifyError[];
+  warnings: IaCVerifyWarning[];
+  verifiedAt: string;
+}
 
 // ── Validation Helper ────────────────────────────────────────────────
 

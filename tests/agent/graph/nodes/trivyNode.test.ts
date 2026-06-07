@@ -41,7 +41,7 @@ function makeState(projectRoot = '/tmp/proj'): DevForgeGraphStateType {
       lastRunJson: null,
       failureSignals: [],
     },
-    credentials: { provider: 'offline', credentials: {} },
+    credentials: { provider: 'offline', credentials: {}, setupAt: new Date().toISOString(), version: 1 as const },
     recommendationResult: null,
     securityResult: null,
     phase: 'idle',
@@ -62,6 +62,11 @@ function makeState(projectRoot = '/tmp/proj'): DevForgeGraphStateType {
     trivyViolations: [],
     trivySkipped: false,
     trivySummary: null,
+    iacGenerationOutput: null,
+    iacVerifyResult: null,
+    iacGenerationAttempt: 0,
+    iacGenerationMaxAttempts: 2,
+    iacSkipped: false,
   };
 }
 

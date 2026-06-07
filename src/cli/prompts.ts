@@ -10,13 +10,18 @@ import {
 import { sanitizeString, validateEnum } from '../utils/sanitizer';
 import { ValidationError } from '../utils/errors';
 import { logger } from '../utils/logger';
+import { supportsIaCGeneration } from '../templates/iac-blocks/registry';
+import { IaCDetectionResult } from '../types';
 
 /**
  * Collects user configuration through interactive prompts.
  * All user inputs are sanitized and validated before assembly.
  * Returns a validated UserConfig object.
  */
-export async function collectUserConfig(detected: DetectedProject): Promise<UserConfig> {
+export async function collectUserConfig(
+  detected: DetectedProject,
+  iacContext?: IaCDetectionResult,
+): Promise<UserConfig> {
   // Determine default deployment target based on detected framework
   let defaultTarget = DeploymentTarget.DOCKER;
   if (detected.framework === 'nextjs' || detected.framework === 'react') {
@@ -93,6 +98,30 @@ export async function collectUserConfig(detected: DetectedProject): Promise<User
 
   const enableTrivyScan: boolean = trivyAnswer.enableTrivyScan;
 
+  // Prompt for IaC tool when IaC is not detected or not deploy-ready
+  let iacTool: UserConfig['iacTool'] = undefined;
+  const needsIaCPrompt =
+    supportsIaCGeneration(deploymentTarget) &&
+    (!iacContext || !iacContext.detected || !iacContext.isDeployReady);
+
+  if (needsIaCPrompt) {
+    const iacAnswer = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'iacTool',
+        message: 'Which IaC tool do you want DevForge to generate?',
+        choices: [
+          { name: 'Terraform (recommended for AWS)', value: 'terraform' },
+          { name: 'AWS CDK (TypeScript)', value: 'cdk' },
+          { name: 'boto3 (Python)', value: 'boto3' },
+          { name: 'Skip IaC generation', value: 'skip' },
+        ],
+        default: 'terraform',
+      },
+    ]);
+    iacTool = iacAnswer.iacTool as UserConfig['iacTool'];
+  }
+
   // Prompt for environment names if multi-environment is enabled
   let environments: string[] = [];
   if (multiEnvironment) {
@@ -136,6 +165,7 @@ export async function collectUserConfig(detected: DetectedProject): Promise<User
     multiEnvironment,
     environments,
     enableTrivyScan,
+    iacTool,
   };
 
   // Validate with Zod schema
@@ -170,6 +200,7 @@ function printConfigSummary(config: UserConfig): void {
     ['Docker Support', config.dockerRequired ? 'Yes' : 'No'],
     ['Multi-Environment', config.multiEnvironment ? 'Yes' : 'No'],
     ['Environments', config.environments.length > 0 ? config.environments.join(', ') : 'N/A'],
+    ['IaC Tool', config.iacTool ?? 'None'],
   );
 
   console.log('\n' + table.toString() + '\n');

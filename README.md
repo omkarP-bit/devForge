@@ -36,6 +36,9 @@ For command details, see [docs/COMMANDS.md](docs/COMMANDS.md).
 | Dry run mode | Yes | Depends | Partial | No |
 | Update command | Yes | No | No | No |
 | Audit mode | Yes | No | No | No |
+| IaC detection (Terraform, CDK, boto3, Pulumi, Ansible) | Yes | No | No | No |
+| Automated deployment via detected IaC | Yes | No | No | No |
+| LLM-assisted IaC generation with verification loop | Yes | No | Partial | No |
 
 ## Supported Frameworks
 
@@ -48,12 +51,16 @@ For command details, see [docs/COMMANDS.md](docs/COMMANDS.md).
 
 ## Supported Deployment Targets
 
-- Vercel
-- Railway
-- Render
-- Firebase
-- AWS EC2
-- Docker
+| Target | IaC automation | Supported tools |
+|--------|---------------|----------------|
+| Vercel | Not needed (managed) | — |
+| Railway | Not needed (managed) | — |
+| Render | Not needed (managed) | — |
+| Firebase | Not needed (managed) | — |
+| AWS ECS (Fargate) | ✓ generate + execute | Terraform, CDK, boto3 |
+| AWS EKS | ✓ generate + execute | Terraform |
+| AWS EC2 | ✓ generate + execute | Terraform, boto3 |
+| Docker | ✓ generate + execute | Terraform |
 
 ## Commands
 
@@ -64,6 +71,19 @@ For command details, see [docs/COMMANDS.md](docs/COMMANDS.md).
 `audit` scans any GitHub Actions workflow set for security, performance, and best-practice issues. It prints a per-file report and exits non-zero when high-severity findings exist.
 
 `preview` renders the planned output in memory so you can inspect the exact YAML before anything is written to disk.
+
+## IaC Automation
+
+DevForge detects existing IaC and, when none is present, can generate it:
+
+- ✦ IaC detection (Terraform, CDK, boto3, Pulumi, Ansible)
+- ✦ Automated deployment via detected IaC (with human-in-the-loop confirmation)
+- ✦ LLM-assisted IaC generation — files assembled from verified building-block templates
+- ✦ Verification loop: `terraform validate`, `cdk synth`, `python -m py_compile` before writing any file
+- ✦ Retry loop: up to `DEVFORGE_IAC_MAX_RETRY` attempts (default 2), with error context fed back to the LLM
+- ✦ Trivy IaC misconfiguration scanning on generated configs
+
+See [docs/IAC.md](docs/IAC.md) for full details.
 
 ## Security
 
@@ -77,7 +97,7 @@ DevForge is designed to stay deterministic and reviewable:
 
 ## Docs
 
-See [docs/COMMANDS.md](docs/COMMANDS.md) for the full command reference and [docs/SECURITY.md](docs/SECURITY.md) for the user-facing security model.
+See [docs/COMMANDS.md](docs/COMMANDS.md) for the full command reference, [docs/SECURITY.md](docs/SECURITY.md) for the user-facing security model, and [docs/IAC.md](docs/IAC.md) for IaC detection, generation, and verification.
 
 ## Contributing
 

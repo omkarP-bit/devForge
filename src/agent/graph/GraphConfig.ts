@@ -34,3 +34,12 @@ export function getMaxFixAttempts(): number {
 
   return parsed;
 }
+
+const DEFAULT_IAC_MAX_RETRY = 2;
+
+export function getIaCMaxRetry(): number {
+  const raw = process.env.DEVFORGE_IAC_MAX_RETRY?.trim();
+  if (!raw) return DEFAULT_IAC_MAX_RETRY;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isNaN(parsed) || parsed <= 0 ? DEFAULT_IAC_MAX_RETRY : parsed;
+}

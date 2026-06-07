@@ -1,4 +1,4 @@
-import { renderTrivyJob } from '../../../src/templates/security/trivyWorkflowStep';
+import { renderTrivyJob } from '../../src/templates/security/trivyWorkflowStep';
 
 describe('renderTrivyJob', () => {
   it('renders image job for Docker projects', () => {

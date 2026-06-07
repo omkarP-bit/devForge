@@ -3,9 +3,11 @@ import { StoredCredentials } from '../credentials/types';
 import { ComplianceViolation } from '../security/StaticSecurityScanner';
 import { TrivySummary } from '../security/trivyTypes';
 import { AgentContext, AgentResult } from '../types';
+import { IaCGenerationOutput, IaCVerifyResult } from '../../types';
 import { GraphNodeTiming } from './graphObservability';
 import { DevForgeGraphMetadata, DevForgeGraphPhase } from './types';
 import { getMaxFixAttempts } from './GraphConfig';
+import { getIaCMaxRetry } from './GraphConfig';
 
 export const DevForgeGraphStateAnnotation = Annotation.Root({
   context: Annotation<AgentContext>,
@@ -92,6 +94,26 @@ export const DevForgeGraphStateAnnotation = Annotation.Root({
   trivySummary: Annotation<TrivySummary | null>({
     reducer: (_previous, next) => next,
     default: () => null,
+  }),
+  iacGenerationOutput: Annotation<IaCGenerationOutput | null>({
+    reducer: (_previous, next) => next,
+    default: () => null,
+  }),
+  iacVerifyResult: Annotation<IaCVerifyResult | null>({
+    reducer: (_previous, next) => next,
+    default: () => null,
+  }),
+  iacGenerationAttempt: Annotation<number>({
+    reducer: (_previous, next) => next,
+    default: () => 0,
+  }),
+  iacGenerationMaxAttempts: Annotation<number>({
+    reducer: (_previous, next) => next,
+    default: () => getIaCMaxRetry(),
+  }),
+  iacSkipped: Annotation<boolean>({
+    reducer: (_previous, next) => next,
+    default: () => false,
   }),
 });
 

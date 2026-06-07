@@ -1,12 +1,12 @@
-import { auditCommand } from '../../../src/cli/auditCommand';
-import { TrivyRunner } from '../../../src/agent/security/TrivyRunner';
+import { auditCommand } from '../../src/cli/auditCommand';
+import { TrivyRunner } from '../../src/agent/security/TrivyRunner';
 
-jest.mock('../../../src/agent/security/TrivyRunner');
-jest.mock('../../../src/utils/logger', () => ({
+jest.mock('../../src/agent/security/TrivyRunner');
+jest.mock('../../src/utils/logger', () => ({
   logger: { warn: jest.fn(), info: jest.fn(), success: jest.fn() },
 }));
 // Prevent real FS / credential operations
-jest.mock('../../../src/utils/fs', () => ({
+jest.mock('../../src/utils/fs', () => ({
   DevForgeFS: jest.fn().mockImplementation(() => ({
     listFiles: jest.fn().mockResolvedValue([]),
     readFile: jest.fn().mockResolvedValue(''),

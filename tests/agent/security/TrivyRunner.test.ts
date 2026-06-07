@@ -6,8 +6,11 @@ jest.mock('child_process', () => ({ execFile: jest.fn() }));
 const mockedExecFile = execFile as jest.MockedFunction<typeof execFile>;
 
 function mockExecFile(err: Error | null, stdout: string) {
-  mockedExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
-    (callback as (err: Error | null, stdout: string, stderr: string) => void)(err, stdout, '');
+  // promisify(execFile) expects the callback as the last arg with (err, {stdout, stderr})
+  // but execFile's promisified form resolves {stdout, stderr}.
+  // The mock must match the raw execFile callback signature: (err, stdout, stderr)
+  mockedExecFile.mockImplementation((_cmd: unknown, _args: unknown, _opts: unknown, callback: unknown) => {
+    (callback as (e: Error | null, out: string, err: string) => void)(err, stdout, '');
     return {} as ReturnType<typeof execFile>;
   });
 }
