@@ -40,6 +40,7 @@ function createContext(): AgentContext {
     },
     generatedFiles: [],
     lastRunJson: null,
+    failureSignals: [],
   };
 }
 
@@ -63,7 +64,7 @@ describe('OfflineFallback', () => {
   });
 
   it('getOfflineFallbackResult() returns a static offline message', () => {
-    const result = getOfflineFallbackResult('recommendation-agent', createContext());
+    const result = getOfflineFallbackResult('recommendation-agent');
 
     expect(result.success).toBe(true);
     expect(result.agentName).toBe('recommendation-agent');

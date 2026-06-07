@@ -67,6 +67,7 @@ export class AgentRuntime {
           text: `${agentName} could not complete: ${message}`,
         },
       ],
+      expectedOutputs: [],
       recommendations: [],
       warnings: [],
     };
@@ -74,13 +75,10 @@ export class AgentRuntime {
 
   private printResult(result: AgentResult): void {
     for (const message of result.messages) {
+      if (message.type === 'info') {
+        continue;
+      }
       this.printMessage(message);
-    }
-
-    for (const recommendation of result.recommendations) {
-      logger.info(
-        `[${recommendation.severity}] ${recommendation.title}: ${recommendation.description}`,
-      );
     }
 
     for (const warning of result.warnings) {

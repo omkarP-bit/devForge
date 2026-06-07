@@ -1,0 +1,22 @@
+{
+  "name": "react-railway-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --watchAll=false",
+    "lint": "eslint src"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

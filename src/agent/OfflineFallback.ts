@@ -1,11 +1,11 @@
 import { StoredCredentials } from './credentials/types';
-import { AgentContext, AgentResult } from './types';
+import { AgentResult } from './types';
 
 export function isOfflineMode(credentials: StoredCredentials): boolean {
   return credentials.provider === 'offline';
 }
 
-export function getOfflineFallbackResult(agentName: string, _context: AgentContext): AgentResult {
+export function getOfflineFallbackResult(agentName: string): AgentResult {
   return {
     agentName,
     success: true,
@@ -17,6 +17,7 @@ export function getOfflineFallbackResult(agentName: string, _context: AgentConte
           'Using template-based generation (v1 engine).',
       },
     ],
+    expectedOutputs: [],
     recommendations: [],
     warnings: [],
   };

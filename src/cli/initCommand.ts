@@ -15,6 +15,7 @@ import { performance } from 'perf_hooks';
 import { CredentialManager } from '../agent/credentials';
 import { StoredCredentials } from '../agent/credentials/types';
 import { formatProviderName, getProviderMode } from '../agent/providerDisplay';
+import { runRecommendationPipeline } from './recommendationPipeline';
 
 /**
  * Orchestrates the complete DevForge initialization workflow.
@@ -33,6 +34,7 @@ export async function initCommand(
     timing?: boolean;
     verbose?: boolean;
     noAgent?: boolean;
+    noReport?: boolean;
   } = {},
 ): Promise<void> {
   const dryRun = options.dryRun ?? false;
@@ -188,6 +190,11 @@ export async function initCommand(
 
     logger.success('✓ SECRETS_REQUIRED.md created');
 
+    await runRecommendationPipeline(validatedConfig, fs, generationResult.written, {
+      noAgent: options.noAgent ?? false,
+      noReport: options.noReport ?? false,
+    });
+
     if (timingEnabled) {
       printTimings(timings);
     }
@@ -250,12 +257,8 @@ function printBanner(
     return;
   }
 
-  const providerLabel = credentials
-    ? formatProviderName(credentials.provider)
-    : 'Not configured';
-  const modeLabel = credentials
-    ? getProviderMode(credentials.provider)
-    : 'Setup required';
+  const providerLabel = credentials ? formatProviderName(credentials.provider) : 'Not configured';
+  const modeLabel = credentials ? getProviderMode(credentials.provider) : 'Setup required';
 
   console.log(chalk.bold(chalk.cyan('┌──────────────────────────────────────────┐')));
   console.log(chalk.bold(chalk.cyan('│  DevForge v2 — Agentic Edition           │')));

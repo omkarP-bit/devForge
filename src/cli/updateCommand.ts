@@ -9,9 +9,11 @@ import { DevForgeFS } from '../utils/fs';
 import { logger } from '../utils/logger';
 import { DevForgeConfig, validateConfig } from '../types';
 import { GenerationResult, LastRunMetadata } from '../generator';
+import { runRecommendationPipeline } from './recommendationPipeline';
 
 interface UpdateOptions {
   dryRun?: boolean;
+  noReport?: boolean;
 }
 
 interface PlannedDiff {
@@ -42,6 +44,9 @@ export async function updateCommand(
 
   if (nextPlan.planHash === lastRun.planHash) {
     logger.success('✓ Workflows are up to date. No changes needed.');
+    await runRecommendationPipeline(config, fs, collectPlanPaths(nextPlan), {
+      noReport: options.noReport ?? false,
+    });
     return;
   }
 
@@ -52,6 +57,9 @@ export async function updateCommand(
     if (!options.dryRun) {
       await persistLastRun(fs, config, nextPlan.planHash, emptyGenerationResult());
     }
+    await runRecommendationPipeline(config, fs, collectPlanPaths(nextPlan), {
+      noReport: options.noReport ?? false,
+    });
     return;
   }
 
@@ -87,6 +95,13 @@ export async function updateCommand(
   const generationResult = await applyDiffs(fs, diffs);
   await persistLastRun(fs, config, nextPlan.planHash, generationResult);
   logger.success(`✓ Updated ${generationResult.written.length} file(s).`);
+  await runRecommendationPipeline(config, fs, generationResult.written, {
+    noReport: options.noReport ?? false,
+  });
+}
+
+function collectPlanPaths(plan: GenerationPlan): string[] {
+  return plan.files.map((file) => file.path);
 }
 
 async function readLastRun(fs: DevForgeFS): Promise<LastRunMetadata> {

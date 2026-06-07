@@ -7,6 +7,10 @@ import { updateCommand } from './updateCommand';
 import { auditCommand } from './auditCommand';
 import { agentResetCommand, agentStatusCommand } from './agentCommand';
 import { cacheClearCommand, cacheStatsCommand } from './cacheCommand';
+import {
+  recommendationsDismissCommand,
+  recommendationsListCommand,
+} from './recommendationsCommand';
 import { DevForgeFS } from '../utils/fs';
 import { listTransactionFiles, rollbackTransaction } from '../generator/transaction';
 import { AgentCache } from '../agent/cache/AgentCache';
@@ -33,6 +37,7 @@ Agent Commands:
   agent reset      Reconfigure AI provider
   cache clear      Clear the LLM response cache
   cache stats      Show cache usage statistics
+  recommendations  List stored pipeline recommendations
 `,
   );
 
@@ -45,6 +50,7 @@ program
   .option('--timing', 'Show per-phase timing information')
   .option('--verbose', 'Alias for --timing')
   .option('--no-agent', 'Skip agent logic and run in offline/v1 mode for this session')
+  .option('--no-report', 'Skip printing the expected pipeline output report')
   .action(async (options) => {
     try {
       await initCommand(process.cwd(), {
@@ -54,6 +60,7 @@ program
         timing: options.timing ?? false,
         verbose: options.verbose ?? false,
         noAgent: options.agent === false,
+        noReport: options.noReport ?? false,
       });
     } catch (err) {
       logger.error('\n✗ DevForge initialization failed');
@@ -66,9 +73,13 @@ program
   .command('update')
   .description('Update existing workflow files with latest template versions')
   .option('--dry-run', 'Show changes without applying them')
+  .option('--no-report', 'Skip printing the expected pipeline output report')
   .action(async (options) => {
     try {
-      await updateCommand(process.cwd(), { dryRun: Boolean(options.dryRun) });
+      await updateCommand(process.cwd(), {
+        dryRun: Boolean(options.dryRun),
+        noReport: options.noReport ?? false,
+      });
     } catch (err) {
       logger.error(String(err));
       // eslint-disable-next-line n/no-process-exit
@@ -146,6 +157,32 @@ cacheCommand
   .action(async () => {
     try {
       await cacheStatsCommand();
+    } catch (err) {
+      logger.error(err instanceof Error ? err.message : String(err));
+      // eslint-disable-next-line n/no-process-exit
+      process.exit(1);
+    }
+  });
+
+const recommendationsCommand = program
+  .command('recommendations')
+  .description('List and manage stored pipeline recommendations')
+  .action(async () => {
+    try {
+      await recommendationsListCommand(process.cwd());
+    } catch (err) {
+      logger.error(err instanceof Error ? err.message : String(err));
+      // eslint-disable-next-line n/no-process-exit
+      process.exit(1);
+    }
+  });
+
+recommendationsCommand
+  .command('dismiss <id>')
+  .description('Dismiss a stored recommendation by id')
+  .action(async (id: string) => {
+    try {
+      await recommendationsDismissCommand(process.cwd(), id);
     } catch (err) {
       logger.error(err instanceof Error ? err.message : String(err));
       // eslint-disable-next-line n/no-process-exit

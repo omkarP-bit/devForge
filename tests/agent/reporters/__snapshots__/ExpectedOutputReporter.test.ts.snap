@@ -1,0 +1,42 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ExpectedOutputReporter renderExpectedOutputReport() appends critical recommendations after the table 1`] = `
+"╔══════════════════════════════════════════╗
+║        What your pipeline will do        ║
+╠══════════════════════════════════════════╢
+║ 1. Install dependencies via npm ci       ║
+╚══════════════════════════════════════════╝
+⚠ Critical: Pin actions — Pin GitHub Actions by commit SHA"
+`;
+
+exports[`ExpectedOutputReporter renderExpectedOutputReport() renders a bordered numbered list from agent expected outputs 1`] = `
+"╔══════════════════════════════════════════╗
+║        What your pipeline will do        ║
+╠══════════════════════════════════════════╢
+║ 1. Install dependencies via npm ci       ║
+╠══════════════════════════════════════════╢
+║ 2. Run tests via npm test                ║
+╠══════════════════════════════════════════╢
+║ 3. Deploy to Vercel (production branch)  ║
+╚══════════════════════════════════════════╝"
+`;
+
+exports[`ExpectedOutputReporter renderExpectedOutputReport() renders static fallback outputs when the agent returned none 1`] = `
+"╔══════════════════════════════════════════╗
+║        What your pipeline will do        ║
+╠══════════════════════════════════════════╢
+║ 1. Install dependencies via npm ci       ║
+╠══════════════════════════════════════════╢
+║ 2. Run tests via npm test                ║
+╠══════════════════════════════════════════╢
+║ 3. Run \`next build\` to produce the opti… ║
+╠══════════════════════════════════════════╢
+║ 4. Cache Next.js build output between r… ║
+╠══════════════════════════════════════════╢
+║ 5. Build the project via npm run build   ║
+╠══════════════════════════════════════════╢
+║ 6. Provision preview deployments for pu… ║
+╠══════════════════════════════════════════╢
+║ 7. Deploy the production build via \`ver… ║
+╚══════════════════════════════════════════╝"
+`;
