@@ -194,6 +194,7 @@ export async function initCommand(
     await runRecommendationPipeline(validatedConfig, fs, generationResult.written, {
       noAgent: options.noAgent ?? false,
       noReport: options.noReport ?? false,
+      verbose: timingEnabled,
     });
 
     if (!options.noAgent) {

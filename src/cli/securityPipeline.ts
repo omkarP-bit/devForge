@@ -3,6 +3,7 @@ import { SecurityComplianceAgent } from '../agent/agents/SecurityComplianceAgent
 import { createAgentCache } from '../agent/cache/createAgentCache';
 import { CredentialManager } from '../agent/credentials';
 import { StoredCredentials } from '../agent/credentials/types';
+import { isGraphEnabled } from '../agent/graph/GraphConfig';
 import { resolveProvider } from '../agent/providers/ProviderFactory';
 import { LLMProvider } from '../agent/providers/types';
 import { AgentContext } from '../agent/types';
@@ -14,6 +15,10 @@ export async function runSecurityBackgroundAgent(
   fs: DevForgeFS,
   generatedFiles: string[],
 ): Promise<void> {
+  if (isGraphEnabled()) {
+    return;
+  }
+
   const credentials = await loadCredentials();
   if (!credentials) return;
 

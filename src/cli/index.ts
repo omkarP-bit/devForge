@@ -6,6 +6,8 @@ import { initCommand } from './initCommand';
 import { updateCommand } from './updateCommand';
 import { auditCommand } from './auditCommand';
 import { agentResetCommand, agentStatusCommand } from './agentCommand';
+import { diagnoseCommand } from './diagnoseCommand';
+import { agentGraphResetCommand, agentGraphStatusCommand } from './graphCommand';
 import {
   cacheClearCommand,
   cacheStatsCommand,
@@ -32,17 +34,20 @@ if (process.env.NODE_ENV === 'production' && !__dirname.includes('node_modules')
 program
   .name('devforge')
   .description('Automated CI/CD Pipeline Generator and Deployment Automation Tool')
-  .version('1.0.0')
+  .version('2.1.0')
   .addHelpText(
     'after',
     `
 Agent Commands:
-  agent status     Show AI provider configuration
-  agent reset      Reconfigure AI provider
+  agent status          Show AI provider configuration
+  agent reset           Reconfigure AI provider
+  agent graph status    Show last LangGraph run metadata
+  agent graph reset     Clear graph memory and checkpoints
   cache clear             Clear the LLM response cache
   cache stats             Show cache usage statistics
   cache test-elasticache  Ping Amazon ElastiCache Redis cluster
-  recommendations  List stored pipeline recommendations
+  diagnose                Run pipeline failure diagnosis
+  recommendations         List stored pipeline recommendations
 `,
   );
 
@@ -95,13 +100,15 @@ program
 program
   .command('audit')
   .description('Audit generated workflows for security misconfigurations')
-  .option('--fix', 'Show auto-fix stub message')
+  .option('--fix', 'Apply deterministic auto-fixes for security violations')
   .option('--security', 'Run NIST/ISO compliance scan via SecurityComplianceAgent')
+  .option('--yes', 'Auto-approve security fixes (required in CI)')
   .action(async (options) => {
     try {
       await auditCommand(process.cwd(), {
         fix: Boolean(options.fix),
         security: Boolean(options.security),
+        yes: Boolean(options.yes),
       });
     } catch (err) {
       logger.error(err instanceof Error ? err.message : String(err));
@@ -138,6 +145,54 @@ agentCommand
   .action(async () => {
     try {
       await agentResetCommand();
+    } catch (err) {
+      logger.error(err instanceof Error ? err.message : String(err));
+      // eslint-disable-next-line n/no-process-exit
+      process.exit(1);
+    }
+  });
+
+const graphAgentCommand = agentCommand
+  .command('graph')
+  .description('Inspect and reset LangGraph orchestration state');
+
+graphAgentCommand
+  .command('status')
+  .description('Show last graph run metadata and checkpoint availability')
+  .action(async () => {
+    try {
+      await agentGraphStatusCommand();
+    } catch (err) {
+      logger.error(err instanceof Error ? err.message : String(err));
+      // eslint-disable-next-line n/no-process-exit
+      process.exit(1);
+    }
+  });
+
+graphAgentCommand
+  .command('reset')
+  .description('Clear graph memory and checkpoints for the current project')
+  .action(async () => {
+    try {
+      await agentGraphResetCommand();
+    } catch (err) {
+      logger.error(err instanceof Error ? err.message : String(err));
+      // eslint-disable-next-line n/no-process-exit
+      process.exit(1);
+    }
+  });
+
+program
+  .command('diagnose')
+  .description('Run pipeline failure diagnosis without regenerating files')
+  .option('--no-agent', 'Use deterministic failure detection only')
+  .option('--json', 'Print machine-readable JSON output')
+  .action(async (options) => {
+    try {
+      await diagnoseCommand(process.cwd(), {
+        noAgent: Boolean(options.noAgent),
+        json: Boolean(options.json),
+      });
     } catch (err) {
       logger.error(err instanceof Error ? err.message : String(err));
       // eslint-disable-next-line n/no-process-exit

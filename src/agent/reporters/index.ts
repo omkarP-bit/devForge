@@ -4,3 +4,8 @@ export {
   resolveExpectedOutputs,
 } from './ExpectedOutputReporter';
 export { printSecurityReport } from './SecurityReporter';
+export {
+  computeRiskScore,
+  reportSecurityAgentResult,
+  violationsFromRecommendations,
+} from './securityReportUtils';

@@ -4,7 +4,7 @@
 > **Scope:** Add LangGraph orchestration on top of the existing v2 agent layer  
 > **Principle:** Agents orchestrate and augment; the v1 deterministic core (detection, rule engine, templates, validators) is never replaced  
 > **Runtime:** TypeScript in-process (`@langchain/langgraph` + `@langchain/core`)  
-> **Status:** Planned — implement tasks one at a time in order
+> **Status:** Tasks 1–5 complete
 
 ---
 
@@ -99,10 +99,10 @@ LangGraph fills that gap. LangChain supplies model adapters and tool interfaces;
 
 ### Acceptance criteria
 
-- [ ] `npm run build` and full Jest suite pass with new deps
-- [ ] Existing `BaseAgent` + `AgentRuntime` paths unchanged (no regressions)
-- [ ] Bridge unit-tested for all five online providers + offline
-- [ ] No LangGraph graph compiled yet — foundation only
+- [x] `npm run build` and full Jest suite pass with new deps
+- [x] Existing `BaseAgent` + `AgentRuntime` paths unchanged (no regressions)
+- [x] Bridge unit-tested for all five online providers + offline
+- [x] No LangGraph graph compiled yet — foundation only
 
 ### Implementation prompt
 
@@ -165,10 +165,10 @@ Add unit tests. Do not wire graphs into CLI yet.
 
 ### Acceptance criteria
 
-- [ ] `devforge init` behavior unchanged from user perspective (same banners, reports)
-- [ ] `--no-agent` skips entire graph
-- [ ] `DEVFORGE_USE_LANGGRAPH=false` uses legacy `AgentRuntime` path
-- [ ] E2E `tests/e2e/agenticInit.test.ts` passes
+- [x] `devforge init` behavior unchanged from user perspective (same banners, reports)
+- [x] `--no-agent` skips entire graph
+- [x] `DEVFORGE_USE_LANGGRAPH=false` uses legacy `AgentRuntime` path
+- [x] E2E `tests/e2e/agenticInit.test.ts` passes
 
 ### Implementation prompt
 
@@ -235,10 +235,10 @@ Use SecurityReporter in security node. Add graph unit tests and keep legacy fall
 
 ### Acceptance criteria
 
-- [ ] `devforge audit --security` works without `--fix` (single scan, no loop)
-- [ ] `devforge audit --security --fix` loops up to 3 times then stops with summary
-- [ ] Offline mode uses static scanner path in graph
-- [ ] No LLM writes to disk — only `AutoFixEngine` applies file changes
+- [x] `devforge audit --security` works without `--fix` (single scan, no loop)
+- [x] `devforge audit --security --fix` loops up to 3 times then stops with summary
+- [x] Offline mode uses static scanner path in graph
+- [x] No LLM writes to disk — only `AutoFixEngine` applies file changes
 
 ### Implementation prompt
 
@@ -302,10 +302,10 @@ to use StaticSecurityScanner. Human approval via inquirer when interactive.
 
 ### Acceptance criteria
 
-- [ ] `devforge diagnose` runs on a project with `.devforge/last-run.json` and prints recommendations
-- [ ] Init still runs diagnosis as part of post-init flow
-- [ ] Dismissed recommendations are not re-surfaced
-- [ ] `--json` output is stable and documented
+- [x] `devforge diagnose` runs on a project with `.devforge/last-run.json` and prints recommendations
+- [x] Init still runs diagnosis as part of post-init flow
+- [x] Dismissed recommendations are not re-surfaced
+- [x] `--json` output is stable and documented
 
 ### Implementation prompt
 
@@ -365,12 +365,12 @@ Support --json and respect RecommendationStore dismissals.
 
 ### Acceptance criteria
 
-- [ ] Single `devForgeGraph` invoked from `initCommand` when agents enabled
-- [ ] `devforge agent graph status` shows last run metadata
-- [ ] Checkpoints survive process restart when ElastiCache or local fallback configured
-- [ ] `DEVFORGE_USE_LANGGRAPH=false` still supported for one release cycle
-- [ ] All 632+ existing tests pass; new graph tests added
-- [ ] `docs/AGENT_GRAPH.md` complete
+- [x] Single `devForgeGraph` invoked from `initCommand` when agents enabled
+- [x] `devforge agent graph status` shows last run metadata
+- [x] Checkpoints survive process restart when ElastiCache or local fallback configured
+- [x] `DEVFORGE_USE_LANGGRAPH=false` still supported for one release cycle
+- [x] All 632+ existing tests pass; new graph tests added
+- [x] `docs/AGENT_GRAPH.md` complete
 
 ### Implementation prompt
 

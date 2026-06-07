@@ -1,9 +1,10 @@
-## [1.0.1](https://github.com/omkarP-bit/devForge/compare/v1.0.0...v1.0.1) (2026-06-07)
+# 2.1.0 (2026-06-07)
 
+### Features
 
-### Bug Fixes
-
-* **agent:** suppress eslint errors in SecurityComplianceAgent ([7491c3b](https://github.com/omkarP-bit/devForge/commit/7491c3b7aad4848ad3ed36ba434b38379ce97b2d))
+* **agent-graph:** LangGraph orchestration for init, diagnose, and security remediation loops
+* **cli:** add `devforge diagnose`, `devforge agent graph status|reset`, and `audit --yes`
+* **docs:** add `docs/AGENT_GRAPH.md` for graph configuration and persistence
 
 # 1.0.0 (2026-06-07)
 

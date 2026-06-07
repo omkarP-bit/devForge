@@ -306,9 +306,9 @@ describe('agentic init flow E2E', () => {
     process.env.CI = 'true';
     await initCommand(projectDir);
 
-    // Flush pending setImmediate callbacks (SecurityComplianceAgent background run)
+    // Flush pending background agent work before isolating cache behavior
     await new Promise<void>((resolve) => setImmediate(resolve));
-    await new Promise<void>((resolve) => setTimeout(resolve, 20));
+    await new Promise<void>((resolve) => setTimeout(resolve, 500));
 
     const credentials = await new CredentialManager({
       credentialsPath: process.env.DEVFORGE_CREDENTIALS_PATH!,

@@ -3,6 +3,7 @@ import { RecommendationAgent } from '../agent/agents';
 import { createAgentCache } from '../agent/cache/createAgentCache';
 import { CredentialManager } from '../agent/credentials';
 import { StoredCredentials } from '../agent/credentials/types';
+import { isGraphEnabled } from '../agent/graph/GraphConfig';
 import { detectLikelyFailures } from '../agent/PipelineFailureDetector';
 import { resolveProvider } from '../agent/providers/ProviderFactory';
 import { LLMProvider } from '../agent/providers/types';
@@ -17,6 +18,7 @@ import { logger } from '../utils/logger';
 export interface RecommendationPipelineOptions {
   noAgent?: boolean;
   noReport?: boolean;
+  verbose?: boolean;
 }
 
 export async function runRecommendationPipeline(
@@ -25,38 +27,71 @@ export async function runRecommendationPipeline(
   generatedFiles: string[],
   options: RecommendationPipelineOptions = {},
 ): Promise<void> {
-  let agentResult: AgentResult | null = null;
-
   if (!options.noAgent) {
     const activeCredentials = await loadActiveCredentials();
     if (activeCredentials) {
-      logger.info('Running pipeline analysis...');
-      const failureSignals = await detectLikelyFailures(config, fs);
-      const lastRunJson = await readLastRunMetadata(fs);
-      const agentContext: AgentContext = {
+      if (isGraphEnabled({ noAgent: options.noAgent })) {
+        const failureSignals = await detectLikelyFailures(config, fs);
+        const lastRunJson = await readLastRunMetadata(fs);
+        const { runDevForgeGraph } = await import('../agent/graph/runDevForgeGraph');
+        await runDevForgeGraph({
+          config,
+          fs,
+          generatedFiles,
+          credentials: activeCredentials,
+          failureSignals,
+          lastRunJson,
+          noAgent: options.noAgent ?? false,
+          skipReport: options.noReport ?? false,
+          verbose: options.verbose ?? false,
+        });
+        return;
+      }
+
+      const agentResult = await runLegacyRecommendationAgent(
         config,
+        fs,
         generatedFiles,
-        lastRunJson,
-        failureSignals,
-      };
-
-      const provider = createAgentProvider(activeCredentials);
-      const recommendationStore = new RecommendationStore(fs, config.devforgeVersion);
-      const agent = new RecommendationAgent(
-        provider,
         activeCredentials,
-        createAgentCache(activeCredentials),
-        recommendationStore,
       );
-      const runtime = new AgentRuntime();
-      agentResult = await runtime.runForeground(agent, agentContext);
-    }
-  }
 
-  if (!options.noReport) {
+      if (!options.noReport) {
+        const reporter = new ExpectedOutputReporter();
+        await reporter.report(agentResult, config);
+      }
+    }
+  } else if (!options.noReport) {
     const reporter = new ExpectedOutputReporter();
-    await reporter.report(agentResult ?? createEmptyAgentResult(), config);
+    await reporter.report(createEmptyAgentResult(), config);
   }
+}
+
+async function runLegacyRecommendationAgent(
+  config: DevForgeConfig,
+  fs: DevForgeFS,
+  generatedFiles: string[],
+  activeCredentials: StoredCredentials,
+): Promise<AgentResult> {
+  logger.info('Running pipeline analysis...');
+  const failureSignals = await detectLikelyFailures(config, fs);
+  const lastRunJson = await readLastRunMetadata(fs);
+  const agentContext: AgentContext = {
+    config,
+    generatedFiles,
+    lastRunJson,
+    failureSignals,
+  };
+
+  const provider = createAgentProvider(activeCredentials);
+  const recommendationStore = new RecommendationStore(fs, config.devforgeVersion);
+  const agent = new RecommendationAgent(
+    provider,
+    activeCredentials,
+    createAgentCache(activeCredentials),
+    recommendationStore,
+  );
+  const runtime = new AgentRuntime();
+  return runtime.runForeground(agent, agentContext);
 }
 
 async function loadActiveCredentials(): Promise<StoredCredentials | null> {

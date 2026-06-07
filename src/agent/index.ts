@@ -10,3 +10,4 @@ export * from './credentials';
 export * from './providers';
 export * from './agents';
 export * from './reporters';
+export * from './graph';

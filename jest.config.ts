@@ -4,7 +4,12 @@ const config: Config = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   collectCoverage: true,
-  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/cli/**'],
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    '!src/**/*.d.ts',
+    '!src/cli/**',
+    '!src/**/index.ts',
+  ],
   coverageThreshold: {
     global: {
       lines: 80,

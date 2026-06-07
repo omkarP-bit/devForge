@@ -4,6 +4,7 @@ import { StoredCredentials } from '../credentials/types';
 import { AgentFallbackError } from '../errors';
 import { LLMProvider } from '../providers/types';
 import { AgentContext, AgentResult, AgentWarning, Recommendation } from '../types';
+import { isOfflineMode } from '../OfflineFallback';
 import { ComplianceViolation, runStaticScan } from '../security/StaticSecurityScanner';
 import { logger } from '../../utils/logger';
 
@@ -42,6 +43,10 @@ export class SecurityComplianceAgent extends BaseAgent {
   async run(context: AgentContext): Promise<AgentResult> {
     const fileContents = await this.loadFiles(context.generatedFiles);
     const staticViolations = runStaticScan(fileContents);
+
+    if (isOfflineMode(this.storedCredentials)) {
+      return this.toAgentResult(staticViolations);
+    }
 
     let llmViolations: ComplianceViolation[] = [];
     try {

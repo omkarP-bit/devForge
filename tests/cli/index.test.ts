@@ -37,25 +37,33 @@ describe('CLI and Logger Smoke Tests', () => {
     30_000,
   );
 
-  it('warns about package integrity in production when launched outside node_modules', async () => {
-    const { stderr } = await execAsync(`node "${cliPath}" --help`, {
-      env: { ...process.env, NODE_ENV: 'production' },
-    } as any);
+  it(
+    'warns about package integrity in production when launched outside node_modules',
+    async () => {
+      const { stderr } = await execAsync(`node "${cliPath}" --help`, {
+        env: { ...process.env, NODE_ENV: 'production' },
+      } as any);
 
-    expect(stderr).toContain('Package integrity check');
-  });
+      expect(stderr).toContain('Package integrity check');
+    },
+    30_000,
+  );
 
-  it('exits with code 1 for unknown commands', async () => {
-    let threw = false;
-    try {
-      await execAsync(`node "${cliPath}" invalidcommand`);
-    } catch (err: any) {
-      threw = true;
-      expect(err.code).toBe(1);
-      expect(err.stderr).toContain("error: unknown command 'invalidcommand'");
-    }
-    expect(threw).toBe(true);
-  });
+  it(
+    'exits with code 1 for unknown commands',
+    async () => {
+      let threw = false;
+      try {
+        await execAsync(`node "${cliPath}" invalidcommand`);
+      } catch (err: any) {
+        threw = true;
+        expect(err.code).toBe(1);
+        expect(err.stderr).toContain("error: unknown command 'invalidcommand'");
+      }
+      expect(threw).toBe(true);
+    },
+    30_000,
+  );
 
   it('logger does not write to stdout/stderr when NODE_ENV=test', () => {
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});

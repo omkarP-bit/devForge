@@ -3,6 +3,12 @@ import { BaseAgent } from './BaseAgent';
 import { AgentContext, AgentOutputMessage, AgentResult } from './types';
 import { logger } from '../utils/logger';
 
+/**
+ * Legacy sequential agent runner used when `DEVFORGE_USE_LANGGRAPH=false`.
+ * Prefer LangGraph orchestration via `runDevForgeGraph()` for init and audit flows.
+ *
+ * @deprecated Use the graph layer in `src/agent/graph/` when LangGraph is enabled.
+ */
 export class AgentRuntime {
   async runForeground(agent: BaseAgent, context: AgentContext): Promise<AgentResult> {
     const spinner = ora(`Running ${agent.agentName}...`).start();

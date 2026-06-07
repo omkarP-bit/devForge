@@ -9,8 +9,13 @@ import { resolveProvider } from '../agent/providers/ProviderFactory';
 import { LLMProvider } from '../agent/providers/types';
 import { AgentRuntime } from '../agent/AgentRuntime';
 import { AgentContext } from '../agent/types';
+import {
+  computeRiskScore,
+  violationsFromRecommendations,
+} from '../agent/reporters/securityReportUtils';
 import { printSecurityReport } from '../agent/reporters/SecurityReporter';
 import { generateComplianceReport } from '../agent/security/ComplianceReportGenerator';
+import { isGraphEnabled } from '../agent/graph/GraphConfig';
 import { applyAutoFixes } from '../agent/security/AutoFixEngine';
 import {
   DevForgeConfig,
@@ -37,6 +42,7 @@ export interface AuditReport {
 interface AuditOptions {
   fix?: boolean;
   security?: boolean;
+  yes?: boolean;
 }
 
 const TRUSTED_ACTION_PREFIXES = ['actions/', 'docker/', './', 'github/'];
@@ -280,15 +286,6 @@ async function runSecurityAudit(projectRoot: string, options: AuditOptions): Pro
     return;
   }
 
-  const provider = buildAuditProvider(credentials);
-  const readFile = (p: string) => fs.readFile(p);
-  const agent = new SecurityComplianceAgent(
-    provider,
-    credentials,
-    createAgentCache(credentials),
-    readFile,
-  );
-
   const config = buildMinimalConfig(projectRoot);
   const context: AgentContext = {
     config,
@@ -297,25 +294,57 @@ async function runSecurityAudit(projectRoot: string, options: AuditOptions): Pro
     failureSignals: [],
   };
 
-  const runtime = new AgentRuntime();
-  const result = await runtime.runForeground(agent, context);
+  let violations;
+  let fixAttempts = 0;
 
-  const violations = extractViolations(result.recommendations, workflowFiles[0] ?? projectRoot);
+  if (options.fix && isGraphEnabled()) {
+    const { runSecurityRemediationGraph } = await import('../agent/graph/runSecurityRemediationGraph');
+    const graphState = await runSecurityRemediationGraph(
+      {
+        context,
+        credentials,
+        autoApprove: options.yes ?? false,
+      },
+      { fs },
+    );
 
-  const riskScore =
-    violations.length === 0
-      ? 0
-      : violations.some((v) => v.severity === 'critical')
-        ? 90
-        : violations.some((v) => v.severity === 'high')
-          ? 60
-          : 30;
+    violations = graphState.violations;
+    fixAttempts = graphState.fixAttempts;
 
+    if (graphState.errors.length > 0) {
+      for (const error of graphState.errors) {
+        logger.warn(error);
+      }
+    }
+  } else {
+    const provider = buildAuditProvider(credentials);
+    const readFile = (p: string) => fs.readFile(p);
+    const agent = new SecurityComplianceAgent(
+      provider,
+      credentials,
+      createAgentCache(credentials),
+      readFile,
+    );
+
+    const runtime = new AgentRuntime();
+    const result = await runtime.runForeground(agent, context);
+
+    violations = violationsFromRecommendations(
+      result.recommendations,
+      workflowFiles[0] ?? projectRoot,
+    );
+
+    if (options.fix) {
+      await applyAutoFixes(violations, fs);
+    }
+  }
+
+  const riskScore = computeRiskScore(violations);
   printSecurityReport(violations, riskScore);
   await generateComplianceReport(violations, config, fs);
 
-  if (options.fix) {
-    await applyAutoFixes(violations, fs);
+  if (options.fix && fixAttempts > 0) {
+    logger.info(`Security remediation loop completed after ${fixAttempts} fix attempt(s).`);
   }
 
   const hasCritical = violations.some((v) => v.severity === 'critical');
@@ -366,25 +395,6 @@ function buildMinimalConfig(projectRoot: string): DevForgeConfig {
     generatedAt: new Date().toISOString(),
     devforgeVersion: '2.0.0',
   };
-}
-
-function extractViolations(
-  recommendations: import('../agent/types').Recommendation[],
-  fallbackFile: string,
-): import('../agent/security/StaticSecurityScanner').ComplianceViolation[] {
-  return recommendations.map((r) => {
-    const controlId = r.title.match(/\[([^\]]+)\]/)?.[1] ?? 'UNKNOWN';
-    const standard: 'NIST' | 'ISO27001' = controlId.startsWith('ISO') ? 'ISO27001' : 'NIST';
-    return {
-      controlId,
-      standard,
-      title: r.title.replace(/^\[[^\]]+\]\s*/, ''),
-      description: r.description,
-      affectedFile: fallbackFile,
-      severity: r.severity,
-      remediation: r.description.split(' — ').pop() ?? '',
-    };
-  });
 }
 
 export default auditCommand;

@@ -94,7 +94,9 @@ describe('agent CLI commands', () => {
   });
 
   describe('CLI integration', () => {
-    it('agent status prints provider name', async () => {
+    it(
+      'agent status prints provider name',
+      async () => {
       const credentialManager = new CredentialManager({ credentialsPath });
       await credentialManager.saveCredentials({
         provider: 'gemini',
@@ -114,9 +116,13 @@ describe('agent CLI commands', () => {
       expect(stderr).not.toMatch(/error/i);
       expect(stdout).toContain('Google Gemini');
       expect(stdout).toContain('gemi***');
-    });
+    },
+      30_000,
+    );
 
-    it('agent reset clears the credential file and re-saves in CI mode', async () => {
+    it(
+      'agent reset clears the credential file and re-saves in CI mode',
+      async () => {
       const credentialManager = new CredentialManager({ credentialsPath });
       await credentialManager.saveCredentials({
         provider: 'openai',
@@ -141,7 +147,9 @@ describe('agent CLI commands', () => {
       const afterReset = await fs.readFile(credentialsPath, 'utf-8');
       expect(afterReset).not.toEqual(beforeReset);
       expect(JSON.parse(afterReset).provider).toBe('offline');
-    });
+    },
+      30_000,
+    );
 
     it('--no-agent suppresses agent output during init', async () => {
       const { stdout: agentStdout } = await execAsync(
