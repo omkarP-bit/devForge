@@ -2,6 +2,7 @@ import { DevForgeConfig } from '../../types';
 import { DevForgeFS } from '../../utils/fs';
 import { logger } from '../../utils/logger';
 import { ComplianceViolation } from './StaticSecurityScanner';
+import { TrivySummary } from './trivyTypes';
 
 const REPORT_PATH = 'COMPLIANCE_REPORT.md';
 
@@ -19,6 +20,8 @@ export async function generateComplianceReport(
   violations: ComplianceViolation[],
   config: DevForgeConfig,
   fs: DevForgeFS,
+  trivyViolations?: ComplianceViolation[],
+  trivySummary?: TrivySummary | null,
 ): Promise<void> {
   if (await fs.fileExists(REPORT_PATH)) {
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
@@ -27,12 +30,17 @@ export async function generateComplianceReport(
     await fs.writeFile(backupPath, existing);
   }
 
-  const report = buildReport(violations, config);
+  const report = buildReport(violations, config, trivyViolations, trivySummary);
   await fs.writeFile(REPORT_PATH, report);
   logger.success('✓ Compliance report written to COMPLIANCE_REPORT.md');
 }
 
-function buildReport(violations: ComplianceViolation[], config: DevForgeConfig): string {
+function buildReport(
+  violations: ComplianceViolation[],
+  config: DevForgeConfig,
+  trivyViolations?: ComplianceViolation[],
+  trivySummary?: TrivySummary | null,
+): string {
   const now = new Date().toISOString();
   const framework = config.detected.framework;
   const target = config.user.deploymentTarget;
@@ -99,6 +107,60 @@ function buildReport(violations: ComplianceViolation[], config: DevForgeConfig):
         '',
       );
     });
+  }
+
+  if (trivyViolations && trivyViolations.length > 0) {
+    lines.push('## Trivy Vulnerability Scan', '');
+    if (trivySummary) {
+      lines.push(
+        `**Total:** ${trivySummary.totalVulnerabilities} | ` +
+          `Critical: ${trivySummary.critical} | High: ${trivySummary.high} | ` +
+          `Medium: ${trivySummary.medium} | Low: ${trivySummary.low} | ` +
+          `Fixable: ${trivySummary.fixableCount}`,
+        '',
+      );
+    }
+
+    const criticalHighTrivy = trivyViolations.filter(
+      (v) => v.severity === 'critical' || v.severity === 'high',
+    );
+
+    if (criticalHighTrivy.length > 0) {
+      lines.push(
+        '| CVE ID | Package | Installed | Fix Version | Severity |',
+        '|--------|---------|-----------|-------------|----------|',
+      );
+      for (const v of criticalHighTrivy) {
+        const match = v.description.match(
+          /^Package (\S+) (\S+) is vulnerable\. Fix: upgrade to (\S+)/,
+        );
+        const pkg = match?.[1] ?? v.affectedFile;
+        const installed = match?.[2] ?? '-';
+        const fixVersion = match?.[3] ?? '-';
+        lines.push(
+          `| ${v.controlId} | ${pkg} | ${installed} | ${fixVersion} | ${v.severity.toUpperCase()} |`,
+        );
+      }
+      lines.push('');
+    }
+
+    const medLow = trivyViolations.filter((v) => v.severity === 'medium' || v.severity === 'low');
+    if (medLow.length > 0) {
+      lines.push(
+        '<details><summary>Medium/Low findings (' + medLow.length + ')</summary>',
+        '',
+        '| CVE ID | Package | Severity |',
+        '|--------|---------|----------|',
+      );
+      for (const v of medLow) {
+        const match = v.description.match(/^Package (\S+)/);
+        const pkg = match?.[1] ?? v.affectedFile;
+        lines.push(`| ${v.controlId} | ${pkg} | ${v.severity.toUpperCase()} |`);
+      }
+      lines.push('', '</details>', '');
+    }
+  } else if (trivyViolations) {
+    lines.push('## Trivy Vulnerability Scan', '', '_No vulnerabilities found._', '');
   }
 
   return lines.join('\n');

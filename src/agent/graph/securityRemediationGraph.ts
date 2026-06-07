@@ -5,6 +5,7 @@ import { hasFixableViolations } from './securityRemediationUtils';
 import { createAutoFixNode } from './nodes/autoFixNode';
 import { approvalNode } from './nodes/approvalNode';
 import { createScanNode } from './nodes/scanNode';
+import { trivyNode } from './nodes/trivyNode';
 import { DevForgeGraphStateAnnotation, DevForgeGraphStateType } from './stateAnnotation';
 
 export interface SecurityRemediationGraphOptions {
@@ -40,10 +41,12 @@ export function buildSecurityRemediationGraph(options: SecurityRemediationGraphO
   const autoFixNode = createAutoFixNode({ fs: options.fs });
 
   const graph = new StateGraph(DevForgeGraphStateAnnotation)
+    .addNode('trivy_scan', trivyNode)
     .addNode('scan', scanNode)
     .addNode('approval', approvalNode)
     .addNode('auto_fix', autoFixNode)
-    .addEdge(START, 'scan')
+    .addEdge(START, 'trivy_scan')
+    .addEdge('trivy_scan', 'scan')
     .addConditionalEdges('scan', routeAfterScan, {
       approval: 'approval',
       __end__: END,

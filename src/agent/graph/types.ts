@@ -1,5 +1,6 @@
 import { StoredCredentials } from '../credentials/types';
 import { ComplianceViolation } from '../security/StaticSecurityScanner';
+import { TrivySummary } from '../security/trivyTypes';
 import { AgentContext, AgentResult } from '../types';
 import { GraphNodeTiming } from './graphObservability';
 import { getMaxFixAttempts } from './GraphConfig';
@@ -42,6 +43,9 @@ export interface DevForgeGraphState {
   skipReport: boolean;
   verbose: boolean;
   nodeTimings: GraphNodeTiming[];
+  trivyViolations: ComplianceViolation[];
+  trivySkipped: boolean;
+  trivySummary: TrivySummary | null;
 }
 
 export function createInitialGraphState(input: {
@@ -76,5 +80,8 @@ export function createInitialGraphState(input: {
     skipReport: input.skipReport ?? false,
     verbose: input.verbose ?? false,
     nodeTimings: [],
+    trivyViolations: [],
+    trivySkipped: false,
+    trivySummary: null,
   };
 }

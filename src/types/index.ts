@@ -61,6 +61,7 @@ export const UserConfigSchema = z.object({
   dockerRequired: z.boolean(),
   multiEnvironment: z.boolean(),
   environments: z.array(z.string().min(1)),
+  enableTrivyScan: z.boolean().optional().default(false),
 });
 
 export const DevForgeConfigSchema = z.object({

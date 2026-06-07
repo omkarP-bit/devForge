@@ -24,6 +24,9 @@ import {
   DeploymentTarget,
   BranchStrategy,
 } from '../types';
+import { TrivyRunner } from '../agent/security/TrivyRunner';
+import { normalizeTrivyResults, getTrivySummary } from '../agent/security/TrivyNormalizer';
+import { ComplianceViolation } from '../agent/security/StaticSecurityScanner';
 import { logger } from '../utils/logger';
 
 export type AuditLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
@@ -43,11 +46,18 @@ interface AuditOptions {
   fix?: boolean;
   security?: boolean;
   yes?: boolean;
+  trivy?: boolean;
+  failOn?: string;
 }
 
 const TRUSTED_ACTION_PREFIXES = ['actions/', 'docker/', './', 'github/'];
 
 export async function auditCommand(projectRoot: string, options: AuditOptions = {}): Promise<void> {
+  if (options.trivy && !options.security) {
+    await runTrivyAudit(projectRoot, options.failOn);
+    return;
+  }
+
   if (options.security) {
     await runSecurityAudit(projectRoot, options);
     return;
@@ -268,6 +278,67 @@ function hasSecretsPassedToUntrustedAction(content: string): boolean {
   });
 }
 
+async function runTrivyAudit(projectRoot: string, failOn?: string): Promise<void> {
+  const runner = new TrivyRunner();
+
+  if (!(await runner.isAvailable())) {
+    console.log('⚠️  Trivy not found. Install it to enable vulnerability scanning.');
+    console.log(
+      'Install guide: https://aquasecurity.github.io/trivy/latest/getting-started/installation/',
+    );
+    process.exitCode = 0;
+    return;
+  }
+
+  const scanResults = [];
+  try {
+    scanResults.push(await runner.scanFilesystem(projectRoot));
+  } catch {
+    /* skip */
+  }
+  try {
+    scanResults.push(await runner.scanConfig('.github/workflows'));
+  } catch {
+    /* skip */
+  }
+
+  const violations = scanResults.flatMap(normalizeTrivyResults);
+  const summary = getTrivySummary(violations);
+
+  const table = new Table({
+    head: ['CVE ID', 'Package', 'Severity', 'Fix Available'],
+    style: { head: ['cyan'] },
+    colWidths: [22, 22, 14, 20],
+    wordWrap: true,
+  });
+
+  for (const v of violations.filter((v) => v.severity === 'critical' || v.severity === 'high')) {
+    const match = v.description.match(/^Package (\S+) \S+ is vulnerable\. Fix: upgrade to (\S+)/);
+    const pkg = match?.[1] ?? '-';
+    const fix = match?.[2] && match[2] !== 'latest' ? `Yes (${match[2]})` : 'No';
+    table.push([v.controlId, pkg, v.severity.toUpperCase(), fix]);
+  }
+
+  if (violations.length === 0) {
+    table.push(['-', '-', '-', '-']);
+  }
+
+  console.log('\n┌' + '─'.repeat(63) + '┐');
+  console.log('│  DevForge Trivy Scan Results' + ' '.repeat(35) + '│');
+  console.log('└' + '─'.repeat(63) + '┘');
+  console.log(table.toString());
+  console.log(
+    `Found ${summary.critical} CRITICAL, ${summary.high} HIGH, ${summary.medium} MEDIUM, ${summary.low} LOW`,
+  );
+
+  const failSeverity = (failOn ?? 'critical').toLowerCase();
+  const shouldFail =
+    (failSeverity === 'critical' && summary.critical > 0) ||
+    (failSeverity === 'high' && (summary.critical > 0 || summary.high > 0));
+
+  process.exitCode = shouldFail ? 1 : 0;
+}
+
 async function runSecurityAudit(projectRoot: string, options: AuditOptions): Promise<void> {
   const fs = new DevForgeFS(projectRoot);
   const workflowRoot = '.github/workflows';
@@ -298,7 +369,9 @@ async function runSecurityAudit(projectRoot: string, options: AuditOptions): Pro
   let fixAttempts = 0;
 
   if (options.fix && isGraphEnabled()) {
-    const { runSecurityRemediationGraph } = await import('../agent/graph/runSecurityRemediationGraph');
+    const { runSecurityRemediationGraph } = await import(
+      '../agent/graph/runSecurityRemediationGraph'
+    );
     const graphState = await runSecurityRemediationGraph(
       {
         context,
@@ -341,7 +414,25 @@ async function runSecurityAudit(projectRoot: string, options: AuditOptions): Pro
 
   const riskScore = computeRiskScore(violations);
   printSecurityReport(violations, riskScore);
-  await generateComplianceReport(violations, config, fs);
+
+  // Auto-run Trivy fs scan when --security is active
+  let trivyViolations: ComplianceViolation[] = [];
+  const trivyRunner = new TrivyRunner();
+  if (await trivyRunner.isAvailable()) {
+    try {
+      const fsResult = await trivyRunner.scanFilesystem(projectRoot);
+      trivyViolations = normalizeTrivyResults(fsResult);
+    } catch (err) {
+      logger.warn(`[trivy] Scan failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  } else {
+    console.log(
+      '\n💡 Install Trivy to enable vulnerability scanning: https://aquasecurity.github.io/trivy/latest/getting-started/installation/',
+    );
+  }
+
+  const trivySummary = trivyViolations.length > 0 ? getTrivySummary(trivyViolations) : null;
+  await generateComplianceReport(violations, config, fs, trivyViolations, trivySummary);
 
   if (options.fix && fixAttempts > 0) {
     logger.info(`Security remediation loop completed after ${fixAttempts} fix attempt(s).`);
@@ -390,6 +481,7 @@ function buildMinimalConfig(projectRoot: string): DevForgeConfig {
       dockerRequired: false,
       multiEnvironment: false,
       environments: [],
+      enableTrivyScan: false,
     },
     dryRun: false,
     generatedAt: new Date().toISOString(),

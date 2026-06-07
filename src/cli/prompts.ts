@@ -81,6 +81,18 @@ export async function collectUserConfig(detected: DetectedProject): Promise<User
 
   const multiEnvironment = multiEnvAnswer.multiEnvironment;
 
+  // Prompt for Trivy vulnerability scanning
+  const trivyAnswer = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'enableTrivyScan',
+      message: 'Include Trivy vulnerability scanning in the generated pipeline? [y/N]',
+      default: false,
+    },
+  ]);
+
+  const enableTrivyScan: boolean = trivyAnswer.enableTrivyScan;
+
   // Prompt for environment names if multi-environment is enabled
   let environments: string[] = [];
   if (multiEnvironment) {
@@ -123,6 +135,7 @@ export async function collectUserConfig(detected: DetectedProject): Promise<User
     dockerRequired,
     multiEnvironment,
     environments,
+    enableTrivyScan,
   };
 
   // Validate with Zod schema

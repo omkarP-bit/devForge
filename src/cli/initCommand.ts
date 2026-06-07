@@ -238,6 +238,7 @@ function getDefaultUserConfig(detected: DetectedProject): UserConfig {
     dockerRequired: !!detected.hasDocker,
     multiEnvironment: false,
     environments: [],
+    enableTrivyScan: false,
   };
 
   return userConfig;

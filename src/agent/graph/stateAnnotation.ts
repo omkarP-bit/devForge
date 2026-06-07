@@ -1,6 +1,7 @@
 import { Annotation } from '@langchain/langgraph';
 import { StoredCredentials } from '../credentials/types';
 import { ComplianceViolation } from '../security/StaticSecurityScanner';
+import { TrivySummary } from '../security/trivyTypes';
 import { AgentContext, AgentResult } from '../types';
 import { GraphNodeTiming } from './graphObservability';
 import { DevForgeGraphMetadata, DevForgeGraphPhase } from './types';
@@ -79,6 +80,18 @@ export const DevForgeGraphStateAnnotation = Annotation.Root({
   nodeTimings: Annotation<GraphNodeTiming[]>({
     reducer: (previous, next) => [...previous, ...next],
     default: () => [],
+  }),
+  trivyViolations: Annotation<ComplianceViolation[]>({
+    reducer: (_previous, next) => next,
+    default: () => [],
+  }),
+  trivySkipped: Annotation<boolean>({
+    reducer: (_previous, next) => next,
+    default: () => false,
+  }),
+  trivySummary: Annotation<TrivySummary | null>({
+    reducer: (_previous, next) => next,
+    default: () => null,
   }),
 });
 

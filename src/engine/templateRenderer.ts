@@ -42,6 +42,9 @@ const ALLOWED_VARIABLES = new Set([
   'hasTests',
   'hasLinting',
   'deploymentTarget',
+  'ECR_REGISTRY',
+  'IMAGE_NAME',
+  'TRIVY_EXIT_CODE',
 ]);
 
 /**

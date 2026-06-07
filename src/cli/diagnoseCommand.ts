@@ -1,7 +1,13 @@
 import { CredentialManager } from '../agent/credentials';
 import { isGraphEnabled } from '../agent/graph/GraphConfig';
 import { detectLikelyFailures } from '../agent/PipelineFailureDetector';
-import { DevForgeConfig, Framework, PackageManager, DeploymentTarget, BranchStrategy } from '../types';
+import {
+  DevForgeConfig,
+  Framework,
+  PackageManager,
+  DeploymentTarget,
+  BranchStrategy,
+} from '../types';
 import { DevForgeFS } from '../utils/fs';
 import { logger } from '../utils/logger';
 import { LastRunMetadata } from '../generator';
@@ -150,6 +156,7 @@ function buildDiagnoseConfig(projectRoot: string): DevForgeConfig {
       dockerRequired: false,
       multiEnvironment: false,
       environments: [],
+      enableTrivyScan: false,
     },
     dryRun: false,
     generatedAt: new Date().toISOString(),
