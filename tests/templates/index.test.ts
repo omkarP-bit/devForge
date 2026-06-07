@@ -14,9 +14,9 @@ describe('Template Storage', () => {
       expect(typeof TEMPLATES).toBe('object');
     });
 
-    it('should have exactly 11 templates', () => {
+    it('should have exactly 20 templates', () => {
       const templateIds = Object.keys(TEMPLATES);
-      expect(templateIds).toHaveLength(11);
+      expect(templateIds).toHaveLength(20);
     });
 
     it('should contain all required template IDs', () => {
@@ -32,6 +32,15 @@ describe('Template Storage', () => {
         'dockerfile-nextjs',
         'dockerignore',
         'multi-env-deploy',
+        'eks-workflow',
+        'eks-k8s-deployment',
+        'eks-k8s-service',
+        'eks-k8s-ingress',
+        'eks-secrets-required',
+        'ecs-workflow',
+        'ecs-task-definition',
+        'ecs-readme',
+        'ecs-secrets-required',
       ];
       requiredIds.forEach((id) => {
         expect(TEMPLATES).toHaveProperty(id);
@@ -84,9 +93,9 @@ describe('Template Storage', () => {
       expect(Array.isArray(ids)).toBe(true);
     });
 
-    it('should return exactly 11 template IDs', () => {
+    it('should return exactly 20 template IDs', () => {
       const ids = getAvailableTemplateIds();
-      expect(ids).toHaveLength(11);
+      expect(ids).toHaveLength(20);
     });
 
     it('should return IDs that match TEMPLATES object keys', () => {
@@ -324,6 +333,21 @@ describe('Template Storage', () => {
         'hasTests',
         'hasLinting',
         'deploymentTarget',
+        'AWS_REGION',
+        'ECR_REGISTRY',
+        'IMAGE_NAME',
+        'TASK_FAMILY',
+        'CPU',
+        'MEMORY',
+        'EXECUTION_ROLE_ARN',
+        'CONTAINER_NAME',
+        'PORT',
+        'ECS_CLUSTER',
+        'ECS_SERVICE',
+        'EKS_CLUSTER_NAME',
+        'APP_NAME',
+        'REPLICAS',
+        'DOMAIN',
       ];
 
       templates.forEach((template) => {
@@ -349,6 +373,7 @@ describe('Template Storage', () => {
         'RENDER_DEPLOY_HOOK',
         'AWS_ACCESS_KEY_ID',
         'AWS_SECRET_ACCESS_KEY',
+        'AWS_ROLE_ARN',
         'AWS_REGION',
         'AWS_EC2_HOST',
         'AWS_EC2_USERNAME',
@@ -442,6 +467,15 @@ describe('Template Storage', () => {
         'dockerfile-nextjs',
         'dockerignore',
         'multi-env-deploy',
+        'eks-workflow',
+        'eks-k8s-deployment',
+        'eks-k8s-service',
+        'eks-k8s-ingress',
+        'eks-secrets-required',
+        'ecs-workflow',
+        'ecs-task-definition',
+        'ecs-readme',
+        'ecs-secrets-required',
       ];
       const actualIds = getAvailableTemplateIds().sort();
       expect(actualIds).toEqual(expectedIds.sort());

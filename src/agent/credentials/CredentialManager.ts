@@ -156,7 +156,7 @@ export class CredentialManager {
 
     // Optionally prompt for agent memory (Elasticsearch) credentials
     if (provider !== 'offline') {
-      const { enableAgentMemory } = await inquirer.prompt<{ enableAgentMemory: boolean }>([
+      const { enableAgentMemory = false } = await inquirer.prompt<{ enableAgentMemory?: boolean }>([
         {
           type: 'confirm',
           name: 'enableAgentMemory',
@@ -193,7 +193,7 @@ export class CredentialManager {
     }
 
     if (provider !== 'offline') {
-      const { testConnection } = await inquirer.prompt<{ testConnection: boolean }>([
+      const { testConnection = false } = await inquirer.prompt<{ testConnection?: boolean }>([
         {
           type: 'confirm',
           name: 'testConnection',

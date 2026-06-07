@@ -83,6 +83,7 @@ describe('CredentialManager', () => {
       .mockResolvedValueOnce({ provider: 'gemini' })
       .mockResolvedValueOnce({ GEMINI_API_KEY: 'gemini-secret' })
       .mockResolvedValueOnce({ cacheMode: 'local' })
+      .mockResolvedValueOnce({ enableAgentMemory: false })
       .mockResolvedValueOnce({ testConnection: false });
 
     const stored = await manager.runFirstTimeSetup();
@@ -105,6 +106,7 @@ describe('CredentialManager', () => {
       .mockResolvedValueOnce({ provider: 'openai' })
       .mockResolvedValueOnce({ OPENAI_API_KEY: 'openai-secret' })
       .mockResolvedValueOnce({ cacheMode: 'local' })
+      .mockResolvedValueOnce({ enableAgentMemory: false })
       .mockResolvedValueOnce({ testConnection: true });
 
     await manager.runFirstTimeSetup();
@@ -176,6 +178,7 @@ describe('CredentialManager', () => {
         AWS_REGION: 'us-west-2',
       })
       .mockResolvedValueOnce({ cacheMode: 'local' })
+      .mockResolvedValueOnce({ enableAgentMemory: false })
       .mockResolvedValueOnce({ testConnection: false });
 
     const stored = await manager.runFirstTimeSetup();
@@ -195,6 +198,7 @@ describe('CredentialManager', () => {
       })
       .mockResolvedValueOnce({ modelId: 'anthropic.claude-3-haiku-20240307-v1:0' })
       .mockResolvedValueOnce({ cacheMode: 'local' })
+      .mockResolvedValueOnce({ enableAgentMemory: false })
       .mockResolvedValueOnce({ testConnection: false });
 
     const stored = await manager.runFirstTimeSetup();
@@ -216,6 +220,7 @@ describe('CredentialManager', () => {
       .mockResolvedValueOnce({ provider: 'anthropic' })
       .mockResolvedValueOnce({ ANTHROPIC_API_KEY: 'anthropic-secret' })
       .mockResolvedValueOnce({ cacheMode: 'local' })
+      .mockResolvedValueOnce({ enableAgentMemory: false })
       .mockResolvedValueOnce({ testConnection: true });
 
     const stored = await manager.runFirstTimeSetup();
@@ -247,6 +252,7 @@ describe('CredentialManager', () => {
         ELASTICACHE_TLS: true,
       })
       .mockResolvedValueOnce({ testNow: true })
+      .mockResolvedValueOnce({ enableAgentMemory: false })
       .mockResolvedValueOnce({ testConnection: false });
 
     const stored = await manager.runFirstTimeSetup();
@@ -266,6 +272,7 @@ describe('CredentialManager', () => {
       .mockResolvedValueOnce({ provider: 'openai' })
       .mockResolvedValueOnce({ OPENAI_API_KEY: 'openai-secret' })
       .mockResolvedValueOnce({ cacheMode: 'local' })
+      .mockResolvedValueOnce({ enableAgentMemory: false })
       .mockResolvedValueOnce({ testConnection: false });
 
     const stored = await manager.runFirstTimeSetup();
@@ -277,6 +284,7 @@ describe('CredentialManager', () => {
       .mockResolvedValueOnce({ provider: 'openai' })
       .mockResolvedValueOnce({ OPENAI_API_KEY: 'bad\u0000key' })
       .mockResolvedValueOnce({ cacheMode: 'local' })
+      .mockResolvedValueOnce({ enableAgentMemory: false })
       .mockResolvedValueOnce({ testConnection: false });
 
     const stored = await manager.runFirstTimeSetup();

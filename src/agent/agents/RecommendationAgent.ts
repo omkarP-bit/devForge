@@ -128,43 +128,47 @@ export class RecommendationAgent extends BaseAgent {
       logger.warn('Failed to store recommendation memory: ' + (err as Error).message);
     }
 
-    // Compute cross-session diff and attach as info message
+    // Compute cross-session diff and attach as info message only when we have past memories
     try {
-      const prevTitles = new Set<string>();
-      for (const m of pastMemories) {
-        const recs = Array.isArray(m.data?.recommendations)
-          ? (m.data.recommendations as unknown[])
-          : [];
-        for (const r of recs) {
-          if (r && typeof r === 'object' && 'title' in r) {
-            const titleValue = (r as Record<string, unknown>).title;
-            if (typeof titleValue === 'string') {
-              prevTitles.add(titleValue);
+      if (pastMemories.length > 0) {
+        const prevTitles = new Set<string>();
+        for (const m of pastMemories) {
+          const recs = Array.isArray(m.data?.recommendations)
+            ? (m.data.recommendations as unknown[])
+            : [];
+          for (const r of recs) {
+            if (r && typeof r === 'object' && 'title' in r) {
+              const titleValue = (r as Record<string, unknown>).title;
+              if (typeof titleValue === 'string') {
+                prevTitles.add(titleValue);
+              }
             }
           }
         }
-      }
 
-      const currentTitles = new Set(result.recommendations.map((r) => r.title));
-      let newCount = 0;
-      let persistentCount = 0;
-      for (const t of currentTitles) {
-        if (!prevTitles.has(t)) newCount++;
-        else persistentCount++;
-      }
-
-      // resolved = previously present but now marked acted_on in RecommendationStore
-      let resolvedCount = 0;
-      if (this.recommendationStore) {
-        const allStored = await this.recommendationStore.load();
-        const acted = new Set(allStored.filter((s) => s.status === 'acted_on').map((s) => s.title));
-        for (const t of acted) {
-          if (!currentTitles.has(t)) resolvedCount++;
+        const currentTitles = new Set(result.recommendations.map((r) => r.title));
+        let newCount = 0;
+        let persistentCount = 0;
+        for (const t of currentTitles) {
+          if (!prevTitles.has(t)) newCount++;
+          else persistentCount++;
         }
-      }
 
-      const changeMsg = `Changes since last scan: +${newCount} new issues, ${resolvedCount} resolved, ${persistentCount} persistent`;
-      result.messages.unshift({ type: 'info', text: changeMsg });
+        // resolved = previously present but now marked acted_on in RecommendationStore
+        let resolvedCount = 0;
+        if (this.recommendationStore) {
+          const allStored = await this.recommendationStore.load();
+          const acted = new Set(
+            allStored.filter((s) => s.status === 'acted_on').map((s) => s.title),
+          );
+          for (const t of acted) {
+            if (!currentTitles.has(t)) resolvedCount++;
+          }
+        }
+
+        const changeMsg = `Changes since last scan: +${newCount} new issues, ${resolvedCount} resolved, ${persistentCount} persistent`;
+        result.messages.unshift({ type: 'info', text: changeMsg });
+      }
     } catch (err) {
       // non-fatal
     }

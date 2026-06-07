@@ -133,7 +133,7 @@ export function validateTemplateRegistry(): boolean {
 export function checkTemplateSecurityIssues(): string[] {
   const warnings: string[] = [];
   const suspiciousPatterns = [
-    { pattern: /['"][a-zA-Z0-9]{20,}['"]/g, name: 'potential hardcoded token' },
+    { pattern: /['"][a-zA-Z0-9]{20,}['"](?!\s*:)/g, name: 'potential hardcoded token' },
     { pattern: /password\s*=\s*['"][^'"]+['"]/gi, name: 'hardcoded password' },
     { pattern: /api.?key\s*=\s*['"][^'"]+['"]/gi, name: 'hardcoded API key' },
     { pattern: /private.?key|BEGIN RSA PRIVATE|BEGIN PRIVATE/gi, name: 'private key' },

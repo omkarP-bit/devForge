@@ -28,10 +28,11 @@ describe('RecommendationAgent memory integration', () => {
       version: 1,
     };
 
-    // Mock retrieve to return a previous recommendation
+    // Mock retrieve to return a previous recommendation and avoid network calls on store
     jest.spyOn(ElasticMemoryStore.prototype as any, 'retrieve').mockResolvedValue([
       { data: { recommendations: [{ title: 'Existing Issue' }] }, timestamp: new Date().toISOString() },
     ]);
+    jest.spyOn(ElasticMemoryStore.prototype as any, 'store').mockResolvedValue(undefined);
 
     const recommendationStore: any = {
       load: async () => [

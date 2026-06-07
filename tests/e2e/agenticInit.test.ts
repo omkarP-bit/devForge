@@ -111,6 +111,7 @@ function mockFirstRunPrompts(): void {
     .mockResolvedValueOnce({ provider: 'openai' })
     .mockResolvedValueOnce({ OPENAI_API_KEY: 'test-key' })
     .mockResolvedValueOnce({ cacheMode: 'local' })
+    .mockResolvedValueOnce({ enableAgentMemory: false })
     .mockResolvedValueOnce({ testConnection: false })
     .mockResolvedValueOnce({ deploymentTarget: 'vercel' })
     .mockResolvedValueOnce({ branchStrategy: 'feature_main' })

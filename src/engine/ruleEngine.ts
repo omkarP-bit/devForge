@@ -54,6 +54,10 @@ const AVAILABLE_TEMPLATES = new Set<string>([
   'eks-k8s-service',
   'eks-k8s-ingress',
   'eks-secrets-required',
+  'ecs-workflow',
+  'ecs-task-definition',
+  'ecs-readme',
+  'ecs-secrets-required',
 ]);
 
 /**

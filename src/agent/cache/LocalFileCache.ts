@@ -28,9 +28,8 @@ export class LocalFileCache implements CacheBackend {
 
   async get(key: string): Promise<string | null> {
     const file = await this.load();
-    const match = file.entries
-      .filter((entry) => entry.key === key && isEntryValid(entry))
-      .sort((left, right) => right.createdAt - left.createdAt)[0];
+    const validEntries = file.entries.filter((entry) => entry.key === key && isEntryValid(entry));
+    const match = validEntries.length > 0 ? validEntries[validEntries.length - 1] : undefined;
 
     return match?.response ?? null;
   }

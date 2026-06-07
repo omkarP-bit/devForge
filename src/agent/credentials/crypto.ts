@@ -53,11 +53,11 @@ export function decryptCredentials(
 
   const record: Record<string, string> = {};
   for (const [field, value] of Object.entries(parsed)) {
-    if (!isKnownCredentialKey(field)) {
-      continue;
-    }
     if (typeof value !== 'string') {
       throw new Error(`Decrypted credential "${field}" is not a string`);
+    }
+    if (!isKnownCredentialKey(field)) {
+      continue;
     }
 
     assignDecryptedCredential(record, field, value);
