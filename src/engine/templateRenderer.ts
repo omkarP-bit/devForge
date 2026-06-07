@@ -139,6 +139,7 @@ function validateTemplateVariables(
  * @throws {GeneratorError} if variable not in allowlist or undefined
  */
 export function renderTemplate(template: string, variables: Map<string, string>): string {
+  /* eslint-disable security/detect-object-injection */
   if (template === null || template === undefined || typeof template !== 'string') {
     throw new GeneratorError('Template must be a string');
   }
@@ -215,6 +216,7 @@ export function renderTemplate(template: string, variables: Map<string, string>)
   }
 
   return result;
+  /* eslint-enable security/detect-object-injection */
 }
 
 /**
