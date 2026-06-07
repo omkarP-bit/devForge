@@ -9,17 +9,21 @@ const execAsync = promisify(exec);
 describe('CLI rollback dry-run', () => {
   const cliPath = path.resolve(__dirname, '../../dist/cli/index.js');
   let tmpDir: string;
+  let cachePath: string;
 
   beforeEach(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'devforge-rollback-'));
+    cachePath = path.join(tmpDir, 'agent-cache.json');
     await fs.mkdir(path.join(tmpDir, '.devforge', 'transactions'), { recursive: true });
   });
 
   afterEach(async () => {
-    await fs.rm(tmpDir, { recursive: true, force: true });
+    await removeTempDir(tmpDir);
   });
 
-  it('does not delete files during dry-run rollback', async () => {
+  it(
+    'does not delete files during dry-run rollback',
+    async () => {
     // create generated file and tx
     const genFile = path.join(tmpDir, 'generated.txt');
     await fs.writeFile(genFile, 'new content', 'utf-8');
@@ -31,10 +35,17 @@ describe('CLI rollback dry-run', () => {
     const txPath = path.join(tmpDir, '.devforge', 'transactions', 'tx1.json');
     await fs.writeFile(txPath, JSON.stringify(tx), 'utf-8');
 
-    const { stdout, stderr } = await execAsync(`node "${cliPath}" rollback --tx .devforge/transactions/tx1.json --dry-run`, {
-      cwd: tmpDir,
-      env: { ...process.env, NODE_ENV: 'development' },
-    } as any);
+    const { stdout, stderr } = await execAsync(
+      `node "${cliPath}" rollback --tx .devforge/transactions/tx1.json --dry-run`,
+      {
+        cwd: tmpDir,
+        env: {
+          ...process.env,
+          NODE_ENV: 'development',
+          DEVFORGE_AGENT_CACHE_PATH: cachePath,
+        },
+      } as any,
+    );
 
     // File should still exist
     const content = await fs.readFile(genFile, 'utf-8');
@@ -42,5 +53,22 @@ describe('CLI rollback dry-run', () => {
 
     // Output should indicate dry-run completion
     expect(String(stdout) + String(stderr)).toMatch(/dry-run/i);
-  });
+    },
+    30_000,
+  );
 });
+
+async function removeTempDir(dir: string): Promise<void> {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      await fs.rm(dir, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'EBUSY' && code !== 'EPERM') {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50 * (attempt + 1)));
+    }
+  }
+}

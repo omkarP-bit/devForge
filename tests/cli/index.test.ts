@@ -10,15 +10,32 @@ const execAsync = promisify(exec);
 describe('CLI and Logger Smoke Tests', () => {
   const cliPath = path.resolve(__dirname, '../../dist/cli/index.js');
 
-  it('exits with code 0 when run with --help', async () => {
-    const { stdout, stderr } = await execAsync(`node "${cliPath}" --help`);
+  it(
+    'exits with code 0 when run with --help',
+    async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'devforge-cli-help-'));
+    const cachePath = path.join(tempDir, 'agent-cache.json');
+
+    try {
+    const { stdout, stderr } = await execAsync(`node "${cliPath}" --help`, {
+      env: {
+        ...process.env,
+        DEVFORGE_AGENT_CACHE_PATH: cachePath,
+      },
+    } as any);
     expect(stderr).not.toMatch(/error/i);
     expect(stdout).toContain('Automated CI/CD Pipeline Generator');
     expect(stdout).toContain('Usage: devforge');
     expect(stdout).toContain('Agent Commands:');
     expect(stdout).toContain('agent status');
     expect(stdout).toContain('cache stats');
-  });
+    expect(stdout).toContain('cache test-elasticache');
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+    },
+    30_000,
+  );
 
   it('warns about package integrity in production when launched outside node_modules', async () => {
     const { stderr } = await execAsync(`node "${cliPath}" --help`, {

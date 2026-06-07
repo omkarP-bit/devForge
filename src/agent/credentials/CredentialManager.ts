@@ -88,8 +88,13 @@ export class CredentialManager {
       },
     ]);
 
-    const credentials =
+    let credentials =
       provider === 'offline' ? {} : await this.promptForProviderCredentials(provider);
+
+    if (provider !== 'offline') {
+      const elasticacheCredentials = await this.promptForElasticacheCredentials();
+      credentials = { ...credentials, ...elasticacheCredentials };
+    }
 
     if (provider !== 'offline') {
       const { testConnection } = await inquirer.prompt<{ testConnection: boolean }>([
@@ -279,6 +284,110 @@ export class CredentialManager {
     return {
       [field]: sanitizeString(answers[field] ?? '', 512),
     };
+  }
+
+  private async promptForElasticacheCredentials(): Promise<Record<string, string>> {
+    const { cacheMode } = await inquirer.prompt<{ cacheMode: 'local' | 'elasticache' }>([
+      {
+        type: 'list',
+        name: 'cacheMode',
+        message: 'How should DevForge cache LLM responses?',
+        choices: [
+          {
+            name: 'Local file cache (~/.devforge/agent-cache.json) — best for solo dev',
+            value: 'local',
+          },
+          {
+            name: 'Amazon ElastiCache (Redis) — shared cloud cache for teams/CI',
+            value: 'elasticache',
+          },
+        ],
+        default: 'local',
+      },
+    ]);
+
+    if (cacheMode === 'local') {
+      return { ELASTICACHE_ENABLED: 'false' };
+    }
+
+    return this.promptAndTestElasticacheCredentials();
+  }
+
+  private async promptAndTestElasticacheCredentials(): Promise<Record<string, string>> {
+    const answers = await inquirer.prompt<{
+      ELASTICACHE_HOST: string;
+      ELASTICACHE_PORT: string;
+      ELASTICACHE_AUTH_TOKEN: string;
+      ELASTICACHE_TLS: boolean;
+    }>([
+      {
+        type: 'input',
+        name: 'ELASTICACHE_HOST',
+        message: 'ElastiCache primary endpoint (e.g. my-cluster.xxxxx.cache.amazonaws.com):',
+        validate: sanitizeCredentialInput,
+      },
+      {
+        type: 'input',
+        name: 'ELASTICACHE_PORT',
+        message: 'Port:',
+        default: '6379',
+        validate: sanitizeCredentialInput,
+      },
+      {
+        type: 'password',
+        name: 'ELASTICACHE_AUTH_TOKEN',
+        message: 'AUTH token (leave blank if encryption-in-transit only):',
+        validate: (input: string) => input.length === 0 || sanitizeCredentialInput(input),
+      },
+      {
+        type: 'confirm',
+        name: 'ELASTICACHE_TLS',
+        message: 'Use TLS? (required for ElastiCache Serverless and in-transit encryption)',
+        default: true,
+      },
+    ]);
+
+    const result: Record<string, string> = {
+      ELASTICACHE_ENABLED: 'true',
+      ELASTICACHE_HOST: sanitizeString(answers.ELASTICACHE_HOST, 255),
+      ELASTICACHE_PORT: sanitizeString(answers.ELASTICACHE_PORT, 16),
+      ELASTICACHE_TLS: answers.ELASTICACHE_TLS ? 'true' : 'false',
+    };
+
+    if (answers.ELASTICACHE_AUTH_TOKEN.trim().length > 0) {
+      result.ELASTICACHE_AUTH_TOKEN = sanitizeString(answers.ELASTICACHE_AUTH_TOKEN, 512);
+    }
+
+    const { testNow } = await inquirer.prompt<{ testNow: boolean }>([
+      {
+        type: 'confirm',
+        name: 'testNow',
+        message: 'Test ElastiCache connection now?',
+        default: true,
+      },
+    ]);
+
+    if (testNow) {
+      await this.testElasticacheConnection(result);
+    }
+
+    return result;
+  }
+
+  private async testElasticacheConnection(
+    credentials: Record<string, string>,
+  ): Promise<void> {
+    const { testElastiCacheConnection } = await import('../cache/testElastiCache');
+    const result = await testElastiCacheConnection({ credentials });
+
+    if (result.success) {
+      logger.success(result.message);
+      return;
+    }
+
+    logger.warn(result.message);
+    logger.info('Credentials will still be saved. Local file cache remains available as fallback.');
+    logger.info('Run `devforge cache test-elasticache` anytime to re-check connectivity.');
   }
 
   private async testProviderConnection(

@@ -1,6 +1,6 @@
 import { AgentRuntime } from '../agent/AgentRuntime';
 import { SecurityComplianceAgent } from '../agent/agents/SecurityComplianceAgent';
-import { AgentCache } from '../agent/cache/AgentCache';
+import { createAgentCache } from '../agent/cache/createAgentCache';
 import { CredentialManager } from '../agent/credentials';
 import { StoredCredentials } from '../agent/credentials/types';
 import { resolveProvider } from '../agent/providers/ProviderFactory';
@@ -20,7 +20,12 @@ export async function runSecurityBackgroundAgent(
   const provider = buildProvider(credentials);
   const readFile = (p: string) => fs.readFile(p);
 
-  const agent = new SecurityComplianceAgent(provider, credentials, new AgentCache(), readFile);
+  const agent = new SecurityComplianceAgent(
+    provider,
+    credentials,
+    createAgentCache(credentials),
+    readFile,
+  );
 
   const context: AgentContext = {
     config,

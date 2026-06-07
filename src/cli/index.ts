@@ -6,7 +6,11 @@ import { initCommand } from './initCommand';
 import { updateCommand } from './updateCommand';
 import { auditCommand } from './auditCommand';
 import { agentResetCommand, agentStatusCommand } from './agentCommand';
-import { cacheClearCommand, cacheStatsCommand } from './cacheCommand';
+import {
+  cacheClearCommand,
+  cacheStatsCommand,
+  cacheTestElasticacheCommand,
+} from './cacheCommand';
 import {
   recommendationsDismissCommand,
   recommendationsListCommand,
@@ -35,8 +39,9 @@ program
 Agent Commands:
   agent status     Show AI provider configuration
   agent reset      Reconfigure AI provider
-  cache clear      Clear the LLM response cache
-  cache stats      Show cache usage statistics
+  cache clear             Clear the LLM response cache
+  cache stats             Show cache usage statistics
+  cache test-elasticache  Ping Amazon ElastiCache Redis cluster
   recommendations  List stored pipeline recommendations
 `,
   );
@@ -161,6 +166,23 @@ cacheCommand
   .action(async () => {
     try {
       await cacheStatsCommand();
+    } catch (err) {
+      logger.error(err instanceof Error ? err.message : String(err));
+      // eslint-disable-next-line n/no-process-exit
+      process.exit(1);
+    }
+  });
+
+cacheCommand
+  .command('test-elasticache')
+  .description('Test connectivity to the configured Amazon ElastiCache Redis cluster')
+  .action(async () => {
+    try {
+      const exitCode = await cacheTestElasticacheCommand();
+      if (exitCode !== 0) {
+        // eslint-disable-next-line n/no-process-exit
+        process.exit(exitCode);
+      }
     } catch (err) {
       logger.error(err instanceof Error ? err.message : String(err));
       // eslint-disable-next-line n/no-process-exit

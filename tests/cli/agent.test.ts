@@ -56,7 +56,7 @@ describe('agent CLI commands', () => {
       const output = logSpy.mock.calls.map((call) => String(call[0])).join('\n');
       expect(output).toContain('Amazon Nova Pro');
       expect(output).toContain('AKIA***');
-      expect(output).toContain('Cache entries: 1');
+      expect(output).toContain('Local cache entries: 1');
       expect(output).toContain('2026-01-01T00:00:00.000Z');
 
       logSpy.mockRestore();

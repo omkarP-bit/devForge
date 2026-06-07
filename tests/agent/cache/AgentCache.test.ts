@@ -90,9 +90,11 @@ describe('AgentCache', () => {
     await cache.set('newer-key', 'newer-response');
 
     const stats = await cache.getStats();
-    expect(stats.entryCount).toBe(2);
-    expect(stats.totalSizeKb).toBeGreaterThan(0);
+    expect(stats.local.entryCount).toBe(2);
+    expect(stats.local.totalSizeKb).toBeGreaterThan(0);
     expect(stats.oldestEntryDate).not.toBeNull();
+    expect(stats.backend).toBe('local');
+    expect(stats.elasticache.enabled).toBe(false);
   });
 
   it('appends entries for the same key and returns the newest valid response', async () => {

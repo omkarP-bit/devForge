@@ -2,7 +2,7 @@ import Table from 'cli-table3';
 import path from 'path';
 import { DevForgeFS } from '../utils/fs';
 import { SecurityComplianceAgent } from '../agent/agents/SecurityComplianceAgent';
-import { AgentCache } from '../agent/cache/AgentCache';
+import { createAgentCache } from '../agent/cache/createAgentCache';
 import { CredentialManager } from '../agent/credentials';
 import { StoredCredentials } from '../agent/credentials/types';
 import { resolveProvider } from '../agent/providers/ProviderFactory';
@@ -282,7 +282,12 @@ async function runSecurityAudit(projectRoot: string, options: AuditOptions): Pro
 
   const provider = buildAuditProvider(credentials);
   const readFile = (p: string) => fs.readFile(p);
-  const agent = new SecurityComplianceAgent(provider, credentials, new AgentCache(), readFile);
+  const agent = new SecurityComplianceAgent(
+    provider,
+    credentials,
+    createAgentCache(credentials),
+    readFile,
+  );
 
   const config = buildMinimalConfig(projectRoot);
   const context: AgentContext = {

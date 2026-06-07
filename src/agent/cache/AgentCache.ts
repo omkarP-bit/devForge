@@ -1,130 +1,108 @@
-import { access, mkdir, readFile, writeFile } from 'fs/promises';
-import os from 'os';
-import path from 'path';
+import { StoredCredentials } from '../credentials/types';
+import { ElastiCacheBackend } from './ElastiCacheBackend';
+import { resolveElastiCacheConfig } from './elasticacheConfig';
+import { LocalFileCache } from './LocalFileCache';
+import {
+  AgentCacheOptions,
+  AgentCacheStats,
+  DEFAULT_CACHE_TTL_MS,
+} from './types';
 
-export const DEFAULT_CACHE_TTL_MS = 86_400_000;
-
-export interface CacheEntry {
-  key: string;
-  response: string;
-  createdAt: number;
-  ttlMs: number;
-}
-
-export interface AgentCacheFile {
-  entries: CacheEntry[];
-}
-
-export interface AgentCacheOptions {
-  cachePath?: string;
-}
-
-export interface AgentCacheStats {
-  entryCount: number;
-  totalSizeKb: number;
-  oldestEntryDate: string | null;
-}
-
-function getDefaultCachePath(): string {
-  if (process.env.DEVFORGE_AGENT_CACHE_PATH) {
-    return process.env.DEVFORGE_AGENT_CACHE_PATH;
-  }
-
-  return path.join(os.homedir(), '.devforge', 'agent-cache.json');
-}
-
-function isEntryValid(entry: CacheEntry, now: number = Date.now()): boolean {
-  const ageMs = now - entry.createdAt;
-  return ageMs >= 0 && ageMs < entry.ttlMs;
-}
+export { DEFAULT_CACHE_TTL_MS } from './types';
+export type { AgentCacheOptions, AgentCacheStats, ElastiCacheConfig } from './types';
 
 export class AgentCache {
   readonly cachePath: string;
+  private readonly local: LocalFileCache;
+  private readonly elasticache: ElastiCacheBackend | null;
 
   constructor(options: AgentCacheOptions = {}) {
-    this.cachePath = options.cachePath ?? getDefaultCachePath();
+    this.local = new LocalFileCache({ cachePath: options.cachePath });
+    this.cachePath = this.local.cachePath;
+
+    const elasticacheConfig =
+      options.elasticache === undefined
+        ? resolveElastiCacheConfig(options.storedCredentials)
+        : options.elasticache;
+
+    this.elasticache = elasticacheConfig ? new ElastiCacheBackend(elasticacheConfig) : null;
+  }
+
+  static fromCredentials(
+    storedCredentials?: StoredCredentials | null,
+    options: Omit<AgentCacheOptions, 'storedCredentials'> = {},
+  ): AgentCache {
+    return new AgentCache({
+      ...options,
+      storedCredentials: storedCredentials ?? undefined,
+    });
   }
 
   async get(key: string): Promise<string | null> {
-    const file = await this.load();
-    const match = file.entries
-      .filter((entry) => entry.key === key && isEntryValid(entry))
-      .sort((left, right) => right.createdAt - left.createdAt)[0];
+    if (this.elasticache) {
+      const remoteValue = await this.elasticache.get(key);
+      if (remoteValue !== null) {
+        return remoteValue;
+      }
+    }
 
-    return match?.response ?? null;
+    return this.local.get(key);
   }
 
   async set(key: string, response: string, ttlMs: number = DEFAULT_CACHE_TTL_MS): Promise<void> {
-    const file = await this.load();
-    file.entries.push({
-      key,
-      response,
-      createdAt: Date.now(),
-      ttlMs,
-    });
+    await this.local.set(key, response, ttlMs);
 
-    await this.persist(file);
+    if (this.elasticache) {
+      await this.elasticache.set(key, response, ttlMs);
+    }
   }
 
   async prune(): Promise<number> {
-    const file = await this.load();
-    const validEntries = file.entries.filter((entry) => isEntryValid(entry));
-    const prunedCount = file.entries.length - validEntries.length;
+    const localPruned = await this.local.prune();
 
-    if (prunedCount > 0) {
-      await this.persist({ entries: validEntries });
+    if (this.elasticache) {
+      await this.elasticache.prune();
     }
 
-    return prunedCount;
+    return localPruned;
   }
 
   async clear(): Promise<void> {
-    await this.persist({ entries: [] });
+    await this.local.clear();
+
+    if (this.elasticache) {
+      await this.elasticache.clear();
+    }
   }
 
   async getStats(): Promise<AgentCacheStats> {
-    const file = await this.load();
-    const validEntries = file.entries.filter((entry) => isEntryValid(entry));
+    const localStats = await this.local.getStats();
+    const elasticacheStats = this.elasticache
+      ? await this.elasticache.getStats()
+      : { entryCount: 0, totalSizeKb: 0, oldestEntryDate: null };
 
-    let fileSizeBytes = 0;
-    try {
-      const raw = await readFile(this.cachePath, 'utf-8');
-      fileSizeBytes = Buffer.byteLength(raw, 'utf8');
-    } catch {
-      fileSizeBytes = 0;
+    const elasticacheEnabled = this.elasticache?.isConfigured() ?? false;
+    const elasticacheConnected = this.elasticache?.isConnected() ?? false;
+
+    let backend: AgentCacheStats['backend'] = 'local';
+    if (elasticacheEnabled && elasticacheConnected) {
+      backend = localStats.entryCount > 0 ? 'hybrid' : 'elasticache';
     }
-
-    const oldestTimestamp =
-      validEntries.length > 0
-        ? Math.min(...validEntries.map((entry) => entry.createdAt))
-        : null;
 
     return {
-      entryCount: validEntries.length,
-      totalSizeKb: Math.round((fileSizeBytes / 1024) * 100) / 100,
-      oldestEntryDate:
-        oldestTimestamp === null ? null : new Date(oldestTimestamp).toISOString(),
+      entryCount: localStats.entryCount + elasticacheStats.entryCount,
+      totalSizeKb: localStats.totalSizeKb,
+      oldestEntryDate: localStats.oldestEntryDate,
+      backend,
+      local: {
+        entryCount: localStats.entryCount,
+        totalSizeKb: localStats.totalSizeKb,
+      },
+      elasticache: {
+        enabled: elasticacheEnabled,
+        connected: elasticacheConnected,
+        entryCount: elasticacheStats.entryCount,
+      },
     };
-  }
-
-  private async load(): Promise<AgentCacheFile> {
-    try {
-      await access(this.cachePath);
-      const raw = await readFile(this.cachePath, 'utf-8');
-      const parsed = JSON.parse(raw) as AgentCacheFile;
-
-      if (!parsed.entries || !Array.isArray(parsed.entries)) {
-        return { entries: [] };
-      }
-
-      return parsed;
-    } catch {
-      return { entries: [] };
-    }
-  }
-
-  private async persist(file: AgentCacheFile): Promise<void> {
-    await mkdir(path.dirname(this.cachePath), { recursive: true });
-    await writeFile(this.cachePath, JSON.stringify(file, null, 2), 'utf-8');
   }
 }

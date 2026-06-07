@@ -1,5 +1,6 @@
 import chalk from 'chalk';
-import { AgentCache } from '../agent/cache/AgentCache';
+import { createAgentCache } from '../agent/cache/createAgentCache';
+import { isElasticacheCredentialKey } from '../agent/cache/elasticacheConfig';
 import { CredentialManager } from '../agent/credentials/CredentialManager';
 import {
   formatProviderName,
@@ -9,15 +10,15 @@ import {
 
 export interface AgentCommandDependencies {
   credentialManager?: CredentialManager;
-  cache?: AgentCache;
+  cache?: ReturnType<typeof createAgentCache>;
 }
 
 export async function agentStatusCommand(
   dependencies: AgentCommandDependencies = {},
 ): Promise<void> {
   const credentialManager = dependencies.credentialManager ?? new CredentialManager();
-  const cache = dependencies.cache ?? new AgentCache();
   const credentials = await credentialManager.tryLoadCredentials();
+  const cache = dependencies.cache ?? createAgentCache(credentials);
   const cacheStats = await cache.getStats();
 
   console.log('');
@@ -27,7 +28,8 @@ export async function agentStatusCommand(
   if (!credentials) {
     console.log(chalk.yellow('Active provider: Not configured'));
     console.log(chalk.yellow('Mode: Setup required'));
-    console.log(chalk.gray(`Cache entries: ${cacheStats.entryCount}`));
+    console.log(chalk.gray(`Cache backend: ${cacheStats.backend}`));
+    console.log(chalk.gray(`Local cache entries: ${cacheStats.local.entryCount}`));
     console.log(chalk.gray('Last setup: N/A'));
     console.log('');
     return;
@@ -36,17 +38,46 @@ export async function agentStatusCommand(
   console.log(chalk.cyan(`Active provider: ${formatProviderName(credentials.provider)}`));
   console.log(chalk.cyan(`Mode: ${getProviderMode(credentials.provider)}`));
 
-  const credentialEntries = Object.entries(credentials.credentials);
-  if (credentialEntries.length === 0) {
+  const providerCredentialEntries = Object.entries(credentials.credentials).filter(
+    ([key]) => !isElasticacheCredentialKey(key),
+  );
+  const elasticacheCredentialEntries = Object.entries(credentials.credentials).filter(([key]) =>
+    isElasticacheCredentialKey(key),
+  );
+
+  if (providerCredentialEntries.length === 0) {
     console.log(chalk.gray('Credentials: none'));
   } else {
     console.log(chalk.gray('Credentials:'));
-    for (const [key, value] of credentialEntries) {
+    for (const [key, value] of providerCredentialEntries) {
       console.log(chalk.gray(`  ${key}: ${maskCredential(value)}`));
     }
   }
 
-  console.log(chalk.gray(`Cache entries: ${cacheStats.entryCount}`));
+  if (elasticacheCredentialEntries.length > 0) {
+    console.log(chalk.gray('ElastiCache:'));
+    for (const [key, value] of elasticacheCredentialEntries) {
+      if (key === 'ELASTICACHE_AUTH_TOKEN') {
+        console.log(chalk.gray(`  ${key}: ${maskCredential(value)}`));
+        continue;
+      }
+      console.log(chalk.gray(`  ${key}: ${value}`));
+    }
+  }
+
+  console.log(chalk.gray(`Cache backend: ${cacheStats.backend}`));
+  console.log(chalk.gray(`Local cache entries: ${cacheStats.local.entryCount}`));
+  console.log(
+    chalk.gray(
+      `ElastiCache: ${
+        cacheStats.elasticache.enabled
+          ? cacheStats.elasticache.connected
+            ? `connected (${cacheStats.elasticache.entryCount} keys)`
+            : 'configured (unavailable — using local fallback)'
+          : 'disabled'
+      }`,
+    ),
+  );
   console.log(chalk.gray(`Last setup: ${credentials.setupAt}`));
   console.log('');
 }

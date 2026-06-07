@@ -8,9 +8,15 @@ import { resolveProvider } from '../../../src/agent/providers/ProviderFactory';
 
 jest.mock('inquirer');
 jest.mock('../../../src/agent/providers/ProviderFactory');
+jest.mock('../../../src/agent/cache/testElastiCache', () => ({
+  testElastiCacheConnection: jest.fn(),
+}));
 
 const mockedInquirer = inquirer as jest.Mocked<typeof inquirer>;
 const mockedResolveProvider = resolveProvider as jest.MockedFunction<typeof resolveProvider>;
+const { testElastiCacheConnection } = jest.requireMock(
+  '../../../src/agent/cache/testElastiCache',
+) as { testElastiCacheConnection: jest.Mock };
 
 describe('CredentialManager', () => {
   let tempDir: string;
@@ -76,6 +82,7 @@ describe('CredentialManager', () => {
     mockedInquirer.prompt
       .mockResolvedValueOnce({ provider: 'gemini' })
       .mockResolvedValueOnce({ GEMINI_API_KEY: 'gemini-secret' })
+      .mockResolvedValueOnce({ cacheMode: 'local' })
       .mockResolvedValueOnce({ testConnection: false });
 
     const stored = await manager.runFirstTimeSetup();
@@ -97,13 +104,14 @@ describe('CredentialManager', () => {
     mockedInquirer.prompt
       .mockResolvedValueOnce({ provider: 'openai' })
       .mockResolvedValueOnce({ OPENAI_API_KEY: 'openai-secret' })
+      .mockResolvedValueOnce({ cacheMode: 'local' })
       .mockResolvedValueOnce({ testConnection: true });
 
     await manager.runFirstTimeSetup();
 
     expect(mockedResolveProvider).toHaveBeenCalledWith({
       provider: 'openai',
-      credentials: { OPENAI_API_KEY: 'openai-secret' },
+      credentials: { OPENAI_API_KEY: 'openai-secret', ELASTICACHE_ENABLED: 'false' },
     });
     expect(mockIsAvailable).toHaveBeenCalled();
   });
@@ -167,6 +175,7 @@ describe('CredentialManager', () => {
         AWS_SECRET_ACCESS_KEY: 'secret',
         AWS_REGION: 'us-west-2',
       })
+      .mockResolvedValueOnce({ cacheMode: 'local' })
       .mockResolvedValueOnce({ testConnection: false });
 
     const stored = await manager.runFirstTimeSetup();
@@ -185,6 +194,7 @@ describe('CredentialManager', () => {
         AWS_REGION: 'us-east-1',
       })
       .mockResolvedValueOnce({ modelId: 'anthropic.claude-3-haiku-20240307-v1:0' })
+      .mockResolvedValueOnce({ cacheMode: 'local' })
       .mockResolvedValueOnce({ testConnection: false });
 
     const stored = await manager.runFirstTimeSetup();
@@ -205,6 +215,7 @@ describe('CredentialManager', () => {
     mockedInquirer.prompt
       .mockResolvedValueOnce({ provider: 'anthropic' })
       .mockResolvedValueOnce({ ANTHROPIC_API_KEY: 'anthropic-secret' })
+      .mockResolvedValueOnce({ cacheMode: 'local' })
       .mockResolvedValueOnce({ testConnection: true });
 
     const stored = await manager.runFirstTimeSetup();
@@ -217,10 +228,55 @@ describe('CredentialManager', () => {
     await expect(manager.isFirstRun()).resolves.toBe(true);
   });
 
+  it('runFirstTimeSetup() stores ElastiCache credentials when cloud cache is selected', async () => {
+    testElastiCacheConnection.mockResolvedValue({
+      success: true,
+      configured: true,
+      message: 'Connected to ElastiCache at cluster.cache.amazonaws.com:6379 (12ms)',
+      latencyMs: 12,
+    });
+
+    mockedInquirer.prompt
+      .mockResolvedValueOnce({ provider: 'openai' })
+      .mockResolvedValueOnce({ OPENAI_API_KEY: 'openai-secret' })
+      .mockResolvedValueOnce({ cacheMode: 'elasticache' })
+      .mockResolvedValueOnce({
+        ELASTICACHE_HOST: 'cluster.cache.amazonaws.com',
+        ELASTICACHE_PORT: '6379',
+        ELASTICACHE_AUTH_TOKEN: '',
+        ELASTICACHE_TLS: true,
+      })
+      .mockResolvedValueOnce({ testNow: true })
+      .mockResolvedValueOnce({ testConnection: false });
+
+    const stored = await manager.runFirstTimeSetup();
+
+    expect(stored.credentials.ELASTICACHE_ENABLED).toBe('true');
+    expect(stored.credentials.ELASTICACHE_HOST).toBe('cluster.cache.amazonaws.com');
+    expect(testElastiCacheConnection).toHaveBeenCalledWith({
+      credentials: expect.objectContaining({
+        ELASTICACHE_ENABLED: 'true',
+        ELASTICACHE_HOST: 'cluster.cache.amazonaws.com',
+      }),
+    });
+  });
+
+  it('runFirstTimeSetup() stores local cache preference explicitly', async () => {
+    mockedInquirer.prompt
+      .mockResolvedValueOnce({ provider: 'openai' })
+      .mockResolvedValueOnce({ OPENAI_API_KEY: 'openai-secret' })
+      .mockResolvedValueOnce({ cacheMode: 'local' })
+      .mockResolvedValueOnce({ testConnection: false });
+
+    const stored = await manager.runFirstTimeSetup();
+    expect(stored.credentials.ELASTICACHE_ENABLED).toBe('false');
+  });
+
   it('sanitizes credential values with control characters during setup', async () => {
     mockedInquirer.prompt
       .mockResolvedValueOnce({ provider: 'openai' })
       .mockResolvedValueOnce({ OPENAI_API_KEY: 'bad\u0000key' })
+      .mockResolvedValueOnce({ cacheMode: 'local' })
       .mockResolvedValueOnce({ testConnection: false });
 
     const stored = await manager.runFirstTimeSetup();

@@ -1,6 +1,6 @@
 import { AgentRuntime } from '../agent/AgentRuntime';
 import { RecommendationAgent } from '../agent/agents';
-import { AgentCache } from '../agent/cache/AgentCache';
+import { createAgentCache } from '../agent/cache/createAgentCache';
 import { CredentialManager } from '../agent/credentials';
 import { StoredCredentials } from '../agent/credentials/types';
 import { detectLikelyFailures } from '../agent/PipelineFailureDetector';
@@ -45,7 +45,7 @@ export async function runRecommendationPipeline(
       const agent = new RecommendationAgent(
         provider,
         activeCredentials,
-        new AgentCache(),
+        createAgentCache(activeCredentials),
         recommendationStore,
       );
       const runtime = new AgentRuntime();
