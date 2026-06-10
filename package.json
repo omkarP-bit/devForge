@@ -33,9 +33,7 @@
     "release": "semantic-release"
   },
   "overrides": {
-    "@langchain/langgraph-checkpoint": {
-      "uuid": "$uuid"
-    }
+    "uuid": "9.0.1"
   },
   "save-exact": true,
   "dependencies": {
